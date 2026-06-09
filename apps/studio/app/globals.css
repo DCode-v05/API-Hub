@@ -1,0 +1,72 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --font-sans: 'Mona Sans', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-mono: 'Monaspace Neon', ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace;
+
+  --background: 0 0% 100%;
+  --foreground: 0 0% 9%;
+  --card: 0 0% 100%;
+  --muted: 0 0% 96.5%;
+  --muted-foreground: 0 0% 44%;
+  --border: 0 0% 92%;
+  --ring: 0 0% 9%;
+  --accent: 212 100% 47%;
+  --accent-foreground: 0 0% 100%;
+  --success: 142 64% 38%;
+  --warning: 35 92% 45%;
+  --danger: 0 72% 48%;
+}
+
+.dark {
+  --background: 0 0% 4%;
+  --foreground: 0 0% 93%;
+  --card: 0 0% 6.5%;
+  --muted: 0 0% 11%;
+  --muted-foreground: 0 0% 58%;
+  --border: 0 0% 16%;
+  --ring: 0 0% 83%;
+  --accent: 212 100% 56%;
+  --accent-foreground: 0 0% 100%;
+  --success: 142 60% 50%;
+  --warning: 35 95% 58%;
+  --danger: 0 72% 60%;
+}
+
+* {
+  border-color: hsl(var(--border));
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  background-color: hsl(var(--background));
+  color: hsl(var(--foreground));
+  font-feature-settings: 'cv11', 'ss01';
+  font-variation-settings: 'opsz' 32;
+}
+
+/* Thin, subtle scrollbars (Vercel-like). */
+::-webkit-scrollbar {
+  width: 9px;
+  height: 9px;
+}
+::-webkit-scrollbar-thumb {
+  background: hsl(var(--border));
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: hsl(var(--muted-foreground) / 0.5);
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.bg-grid {
+  background-image: radial-gradient(hsl(var(--border)) 1px, transparent 1px);
+  background-size: 22px 22px;
+}

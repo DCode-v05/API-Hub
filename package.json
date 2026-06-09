@@ -10,7 +10,8 @@
     "packages/ingest",
     "packages/ir-core",
     "packages/projection",
-    "packages/cli"
+    "packages/cli",
+    "apps/studio"
   ],
   "engines": {
     "node": ">=20"
@@ -23,7 +24,9 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
-    "lint": "tsc -p tsconfig.json --noEmit"
+    "lint": "tsc -p tsconfig.json --noEmit",
+    "studio": "npm run dev -w apps/studio",
+    "studio:build": "npm run build -w apps/studio"
   },
   "devDependencies": {
     "@types/js-yaml": "^4.0.9",
