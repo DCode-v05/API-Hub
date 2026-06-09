@@ -1,0 +1,4 @@
+[project]
+name = "tasks-sdk-py"
+version = "1.0.0"
+description = "Sample input #3b: an existing Python SDK to reverse-derive."

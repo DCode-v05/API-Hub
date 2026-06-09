@@ -1,0 +1,26 @@
+{
+  "post": {
+    "operationId": "createProject",
+    "summary": "Create a new design project in a team. Returns the project id.",
+    "tags": ["projects"],
+    "security": [{ "bearerAuth": [] }],
+    "requestBody": {
+      "required": true,
+      "content": {
+        "application/json": {
+          "schema": { "$ref": "../components/CreateProjectInput.json" }
+        }
+      }
+    },
+    "responses": {
+      "201": {
+        "description": "Project created",
+        "content": {
+          "application/json": {
+            "schema": { "$ref": "../components/Project.json" }
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,48 @@
+{
+  "openapi": "3.1.0",
+  "info": { "title": "3D Print API", "version": "1.0.0" },
+  "servers": [{ "url": "https://api.example/v1" }],
+  "paths": {
+    "/things": {
+      "post": {
+        "operationId": "createThing",
+        "summary": "Create a thing. Return the \"id\"; see path C:\\temp\\",
+        "parameters": [
+          { "name": "x-trace-id", "in": "header", "required": false, "schema": { "type": "string" } },
+          { "name": "2fa-code", "in": "header", "required": false, "schema": { "type": "string" } }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["class", "from"],
+                "properties": {
+                  "class": { "type": "string" },
+                  "from": { "type": "string" },
+                  "import": { "type": "integer" },
+                  "x_trace_id": { "type": "string" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "created",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/user_profile" } }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "user_profile": { "type": "object", "properties": { "a": { "type": "string" } } },
+      "User_Profile": { "type": "object", "properties": { "b": { "type": "integer" } } }
+    }
+  }
+}

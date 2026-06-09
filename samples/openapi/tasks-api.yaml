@@ -1,0 +1,326 @@
+# Sample input #2: an OpenAPI spec document (the richest, "declared" input).
+# A task-tracking API: projects, tasks, comments, users, and tags — ~20 endpoints across 5 resources.
+openapi: 3.1.0
+info:
+  title: Tasks API
+  version: 2.0.0
+  description: A task-tracking API with projects, tasks, comments, users, and tags.
+servers:
+  - url: https://api.tasks.example/v1
+security:
+  - bearerAuth: []
+paths:
+  /projects:
+    get:
+      operationId: listProjects
+      tags: [projects]
+      summary: List projects, optionally filtered by status.
+      parameters:
+        - { name: status, in: query, required: false, schema: { type: string } }
+        - { name: limit, in: query, required: false, schema: { type: integer } }
+        - { name: cursor, in: query, required: false, schema: { type: string } }
+      responses:
+        '200':
+          description: A page of projects.
+          content: { application/json: { schema: { $ref: '#/components/schemas/ProjectPage' } } }
+    post:
+      operationId: createProject
+      tags: [projects]
+      summary: Create a project.
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/NewProject' } } }
+      responses:
+        '201':
+          description: The created project.
+          content: { application/json: { schema: { $ref: '#/components/schemas/Project' } } }
+  /projects/{project_id}:
+    get:
+      operationId: getProject
+      tags: [projects]
+      summary: Fetch one project by id.
+      parameters: [{ name: project_id, in: path, required: true, schema: { type: string } }]
+      responses:
+        '200':
+          description: The project.
+          content: { application/json: { schema: { $ref: '#/components/schemas/Project' } } }
+    patch:
+      operationId: updateProject
+      tags: [projects]
+      summary: Update a project.
+      parameters: [{ name: project_id, in: path, required: true, schema: { type: string } }]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/UpdateProject' } } }
+      responses:
+        '200':
+          description: The updated project.
+          content: { application/json: { schema: { $ref: '#/components/schemas/Project' } } }
+    delete:
+      operationId: deleteProject
+      tags: [projects]
+      summary: Delete a project.
+      parameters: [{ name: project_id, in: path, required: true, schema: { type: string } }]
+      responses:
+        '204': { description: Deleted. }
+  /tasks:
+    get:
+      operationId: listTasks
+      tags: [tasks]
+      summary: List tasks, filtered by project, status, or assignee.
+      parameters:
+        - { name: project_id, in: query, required: false, schema: { type: string } }
+        - { name: status, in: query, required: false, schema: { type: string } }
+        - { name: assignee_id, in: query, required: false, schema: { type: string } }
+        - { name: limit, in: query, required: false, schema: { type: integer } }
+        - { name: cursor, in: query, required: false, schema: { type: string } }
+      responses:
+        '200':
+          description: A page of tasks.
+          content: { application/json: { schema: { $ref: '#/components/schemas/TaskPage' } } }
+    post:
+      operationId: createTask
+      tags: [tasks]
+      summary: Create a task in a project.
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/NewTask' } } }
+      responses:
+        '201':
+          description: The created task.
+          content: { application/json: { schema: { $ref: '#/components/schemas/Task' } } }
+  /tasks/{task_id}:
+    get:
+      operationId: getTask
+      tags: [tasks]
+      summary: Fetch one task by id.
+      parameters: [{ name: task_id, in: path, required: true, schema: { type: string } }]
+      responses:
+        '200':
+          description: The task.
+          content: { application/json: { schema: { $ref: '#/components/schemas/Task' } } }
+    patch:
+      operationId: updateTask
+      tags: [tasks]
+      summary: Update a task (status, assignee, due date, ...).
+      parameters: [{ name: task_id, in: path, required: true, schema: { type: string } }]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/UpdateTask' } } }
+      responses:
+        '200':
+          description: The updated task.
+          content: { application/json: { schema: { $ref: '#/components/schemas/Task' } } }
+    delete:
+      operationId: deleteTask
+      tags: [tasks]
+      summary: Delete a task.
+      parameters: [{ name: task_id, in: path, required: true, schema: { type: string } }]
+      responses:
+        '204': { description: Deleted. }
+  /comments:
+    get:
+      operationId: listComments
+      tags: [comments]
+      summary: List comments for a task.
+      parameters:
+        - { name: task_id, in: query, required: true, schema: { type: string } }
+        - { name: limit, in: query, required: false, schema: { type: integer } }
+        - { name: cursor, in: query, required: false, schema: { type: string } }
+      responses:
+        '200':
+          description: A page of comments.
+          content: { application/json: { schema: { $ref: '#/components/schemas/CommentPage' } } }
+    post:
+      operationId: createComment
+      tags: [comments]
+      summary: Add a comment to a task.
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/NewComment' } } }
+      responses:
+        '201':
+          description: The created comment.
+          content: { application/json: { schema: { $ref: '#/components/schemas/Comment' } } }
+  /comments/{comment_id}:
+    get:
+      operationId: getComment
+      tags: [comments]
+      summary: Fetch one comment by id.
+      parameters: [{ name: comment_id, in: path, required: true, schema: { type: string } }]
+      responses:
+        '200':
+          description: The comment.
+          content: { application/json: { schema: { $ref: '#/components/schemas/Comment' } } }
+    delete:
+      operationId: deleteComment
+      tags: [comments]
+      summary: Delete a comment.
+      parameters: [{ name: comment_id, in: path, required: true, schema: { type: string } }]
+      responses:
+        '204': { description: Deleted. }
+  /users:
+    get:
+      operationId: listUsers
+      tags: [users]
+      summary: List users.
+      parameters:
+        - { name: limit, in: query, required: false, schema: { type: integer } }
+        - { name: cursor, in: query, required: false, schema: { type: string } }
+      responses:
+        '200':
+          description: A page of users.
+          content: { application/json: { schema: { $ref: '#/components/schemas/UserPage' } } }
+  /users/{user_id}:
+    get:
+      operationId: getUser
+      tags: [users]
+      summary: Fetch one user by id.
+      parameters: [{ name: user_id, in: path, required: true, schema: { type: string } }]
+      responses:
+        '200':
+          description: The user.
+          content: { application/json: { schema: { $ref: '#/components/schemas/User' } } }
+  /tags:
+    get:
+      operationId: listTags
+      tags: [tags]
+      summary: List tags.
+      responses:
+        '200':
+          description: A page of tags.
+          content: { application/json: { schema: { $ref: '#/components/schemas/TagPage' } } }
+    post:
+      operationId: createTag
+      tags: [tags]
+      summary: Create a tag.
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/NewTag' } } }
+      responses:
+        '201':
+          description: The created tag.
+          content: { application/json: { schema: { $ref: '#/components/schemas/Tag' } } }
+  /tags/{tag_id}:
+    delete:
+      operationId: deleteTag
+      tags: [tags]
+      summary: Delete a tag.
+      parameters: [{ name: tag_id, in: path, required: true, schema: { type: string } }]
+      responses:
+        '204': { description: Deleted. }
+components:
+  securitySchemes:
+    bearerAuth: { type: http, scheme: bearer }
+  schemas:
+    Project:
+      type: object
+      required: [id, name, status, created_at]
+      properties:
+        id: { type: string }
+        name: { type: string }
+        status: { type: string }
+        created_at: { type: string, format: date-time }
+    NewProject:
+      type: object
+      required: [name]
+      properties:
+        name: { type: string }
+        status: { type: string }
+    UpdateProject:
+      type: object
+      properties:
+        name: { type: string }
+        status: { type: string }
+    ProjectPage:
+      type: object
+      required: [items]
+      properties:
+        items: { type: array, items: { $ref: '#/components/schemas/Project' } }
+        next_cursor: { type: string }
+    Task:
+      type: object
+      required: [id, project_id, title, status, created_at]
+      properties:
+        id: { type: string }
+        project_id: { type: string }
+        title: { type: string }
+        status: { type: string }
+        assignee_id: { type: string }
+        due_date: { type: string, format: date-time }
+        created_at: { type: string, format: date-time }
+    NewTask:
+      type: object
+      required: [project_id, title]
+      properties:
+        project_id: { type: string }
+        title: { type: string }
+        status: { type: string }
+        assignee_id: { type: string }
+        due_date: { type: string, format: date-time }
+    UpdateTask:
+      type: object
+      properties:
+        title: { type: string }
+        status: { type: string }
+        assignee_id: { type: string }
+        due_date: { type: string, format: date-time }
+    TaskPage:
+      type: object
+      required: [items]
+      properties:
+        items: { type: array, items: { $ref: '#/components/schemas/Task' } }
+        next_cursor: { type: string }
+    Comment:
+      type: object
+      required: [id, task_id, author_id, body, created_at]
+      properties:
+        id: { type: string }
+        task_id: { type: string }
+        author_id: { type: string }
+        body: { type: string }
+        created_at: { type: string, format: date-time }
+    NewComment:
+      type: object
+      required: [task_id, body]
+      properties:
+        task_id: { type: string }
+        body: { type: string }
+    CommentPage:
+      type: object
+      required: [items]
+      properties:
+        items: { type: array, items: { $ref: '#/components/schemas/Comment' } }
+        next_cursor: { type: string }
+    User:
+      type: object
+      required: [id, name, email]
+      properties:
+        id: { type: string }
+        name: { type: string }
+        email: { type: string }
+    UserPage:
+      type: object
+      required: [items]
+      properties:
+        items: { type: array, items: { $ref: '#/components/schemas/User' } }
+        next_cursor: { type: string }
+    Tag:
+      type: object
+      required: [id, name]
+      properties:
+        id: { type: string }
+        name: { type: string }
+        color: { type: string }
+    NewTag:
+      type: object
+      required: [name]
+      properties:
+        name: { type: string }
+        color: { type: string }
+    TagPage:
+      type: object
+      required: [items]
+      properties:
+        items: { type: array, items: { $ref: '#/components/schemas/Tag' } }
+        next_cursor: { type: string }

@@ -1,0 +1,35 @@
+{
+  "name": "connector-network",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Connector Network — CLI pipeline: acquire → ingest (adapt/assemble/validate+repair) → IR. A source climbs once to a content-hashed IR.",
+  "workspaces": [
+    "packages/contracts",
+    "packages/acquire",
+    "packages/ingest",
+    "packages/ir-core",
+    "packages/projection",
+    "packages/cli"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "bin": {
+    "cn": "packages/cli/bin/cn.mjs"
+  },
+  "scripts": {
+    "cn": "tsx packages/cli/src/index.ts",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "lint": "tsc -p tsconfig.json --noEmit"
+  },
+  "devDependencies": {
+    "@types/js-yaml": "^4.0.9",
+    "@types/node": "^25.9.2",
+    "tsx": "^4.22.4",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.8"
+  }
+}

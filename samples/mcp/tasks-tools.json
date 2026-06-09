@@ -1,0 +1,47 @@
+{
+  "info": { "title": "Tasks MCP", "version": "2.0.0" },
+  "tools": [
+    { "name": "list_projects", "description": "List projects, optionally filtered by status.",
+      "inputSchema": { "type": "object", "properties": { "status": { "type": "string" }, "limit": { "type": "integer" }, "cursor": { "type": "string" } } } },
+    { "name": "create_project", "description": "Create a project.",
+      "inputSchema": { "type": "object", "required": ["name"], "properties": { "name": { "type": "string" }, "status": { "type": "string" } } } },
+    { "name": "get_project", "description": "Fetch one project by id.",
+      "inputSchema": { "type": "object", "required": ["project_id"], "properties": { "project_id": { "type": "string" } } } },
+    { "name": "update_project", "description": "Update a project.",
+      "inputSchema": { "type": "object", "required": ["project_id"], "properties": { "project_id": { "type": "string" }, "name": { "type": "string" }, "status": { "type": "string" } } } },
+    { "name": "delete_project", "description": "Delete a project.",
+      "inputSchema": { "type": "object", "required": ["project_id"], "properties": { "project_id": { "type": "string" } } } },
+
+    { "name": "list_tasks", "description": "List tasks, filtered by project, status, or assignee.",
+      "inputSchema": { "type": "object", "properties": { "project_id": { "type": "string" }, "status": { "type": "string" }, "assignee_id": { "type": "string" }, "limit": { "type": "integer" } } } },
+    { "name": "create_task", "description": "Create a task in a project.",
+      "inputSchema": { "type": "object", "required": ["project_id", "title"], "properties": { "project_id": { "type": "string" }, "title": { "type": "string" }, "assignee_id": { "type": "string" }, "due_date": { "type": "string", "format": "date-time" } } } },
+    { "name": "get_task", "description": "Fetch one task by id.",
+      "inputSchema": { "type": "object", "required": ["task_id"], "properties": { "task_id": { "type": "string" } } } },
+    { "name": "update_task", "description": "Update a task.",
+      "inputSchema": { "type": "object", "required": ["task_id"], "properties": { "task_id": { "type": "string" }, "status": { "type": "string" }, "assignee_id": { "type": "string" } } } },
+    { "name": "delete_task", "description": "Delete a task.",
+      "inputSchema": { "type": "object", "required": ["task_id"], "properties": { "task_id": { "type": "string" } } } },
+
+    { "name": "list_comments", "description": "List comments for a task.",
+      "inputSchema": { "type": "object", "required": ["task_id"], "properties": { "task_id": { "type": "string" }, "limit": { "type": "integer" } } } },
+    { "name": "create_comment", "description": "Add a comment to a task.",
+      "inputSchema": { "type": "object", "required": ["task_id", "body"], "properties": { "task_id": { "type": "string" }, "body": { "type": "string" } } } },
+    { "name": "get_comment", "description": "Fetch one comment by id.",
+      "inputSchema": { "type": "object", "required": ["comment_id"], "properties": { "comment_id": { "type": "string" } } } },
+    { "name": "delete_comment", "description": "Delete a comment.",
+      "inputSchema": { "type": "object", "required": ["comment_id"], "properties": { "comment_id": { "type": "string" } } } },
+
+    { "name": "list_users", "description": "List users.",
+      "inputSchema": { "type": "object", "properties": { "limit": { "type": "integer" }, "cursor": { "type": "string" } } } },
+    { "name": "get_user", "description": "Fetch one user by id.",
+      "inputSchema": { "type": "object", "required": ["user_id"], "properties": { "user_id": { "type": "string" } } } },
+
+    { "name": "list_tags", "description": "List tags.",
+      "inputSchema": { "type": "object", "properties": {} } },
+    { "name": "create_tag", "description": "Create a tag.",
+      "inputSchema": { "type": "object", "required": ["name"], "properties": { "name": { "type": "string" }, "color": { "type": "string" } } } },
+    { "name": "delete_tag", "description": "Delete a tag.",
+      "inputSchema": { "type": "object", "required": ["tag_id"], "properties": { "tag_id": { "type": "string" } } } }
+  ]
+}

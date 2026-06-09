@@ -1,0 +1,5 @@
+{
+  "name": "sample-sdk",
+  "version": "1.0.0",
+  "description": "A tiny TypeScript SDK fixture for reverse-derivation tests."
+}

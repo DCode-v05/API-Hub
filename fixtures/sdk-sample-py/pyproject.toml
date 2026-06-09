@@ -1,0 +1,4 @@
+[project]
+name = "sample-sdk-py"
+version = "1.0.0"
+description = "A tiny Python SDK fixture for reverse-derivation tests."

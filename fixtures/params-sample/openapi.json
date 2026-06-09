@@ -1,0 +1,41 @@
+{
+  "openapi": "3.1.0",
+  "info": { "title": "Params Sample", "version": "0.1.0" },
+  "paths": {
+    "/accounts/{account_id}": {
+      "get": {
+        "operationId": "getAccount",
+        "summary": "Fetch one account.",
+        "parameters": [
+          {
+            "name": "account_id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Account" }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Account": {
+        "type": "object",
+        "properties": {
+          "account_id": { "type": "string" },
+          "name": { "type": "string" }
+        }
+      }
+    }
+  }
+}

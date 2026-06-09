@@ -1,0 +1,21 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Lumen API",
+    "version": "1.2.0",
+    "description": "A design-tool SaaS. The worked example from the design doc."
+  },
+  "servers": [{ "url": "https://api.lumen.example/v1" }],
+  "paths": {
+    "/projects": { "$ref": "./paths/projects.json" }
+  },
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": { "type": "http", "scheme": "bearer" }
+    },
+    "schemas": {
+      "Project": { "$ref": "./components/Project.json" },
+      "CreateProjectInput": { "$ref": "./components/CreateProjectInput.json" }
+    }
+  }
+}

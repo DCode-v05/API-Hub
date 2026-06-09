@@ -1,0 +1,27 @@
+{
+  "info": { "title": "Lumen MCP", "version": "1.2.0" },
+  "tools": [
+    {
+      "name": "create_project",
+      "description": "Create a new design project in a team. Returns the project id.",
+      "inputSchema": {
+        "type": "object",
+        "required": ["name", "team_id"],
+        "properties": {
+          "name": { "type": "string" },
+          "team_id": { "type": "string" },
+          "template": { "type": "string" }
+        }
+      }
+    },
+    {
+      "name": "list_projects",
+      "description": "List projects belonging to a team.",
+      "inputSchema": {
+        "type": "object",
+        "required": ["team_id"],
+        "properties": { "team_id": { "type": "string" } }
+      }
+    }
+  ]
+}

@@ -1,0 +1,17 @@
+{
+  "name": "@cn/cli",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "bin": {
+    "cn": "./bin/cn.mjs"
+  },
+  "main": "./src/index.ts",
+  "dependencies": {
+    "@cn/acquire": "*",
+    "@cn/contracts": "*",
+    "@cn/ingest": "*",
+    "@cn/ir-core": "*",
+    "@cn/projection": "*"
+  }
+}

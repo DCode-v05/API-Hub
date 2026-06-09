@@ -1,0 +1,3 @@
+#!/usr/bin/env bash
+# bash/zsh/git-bash launcher: run `./cn …` from the repo root.
+exec node "$(dirname "$0")/packages/cli/bin/cn.mjs" "$@"

@@ -1,0 +1,16 @@
+node_modules/
+dist/
+out/
+*.tsbuildinfo
+.DS_Store
+npm-debug.log*
+coverage/
+# local scratch / acquisition output
+.cn-tmp/
+# generated projection surfaces (regenerable via `cn project`)
+surfaces/
+surfaces-adv/
+__pycache__/
+# secrets — never commit real tokens (.env.example is the tracked template)
+.env
+.env.local

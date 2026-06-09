@@ -1,0 +1,15 @@
+{
+  "info": { "title": "Risky MCP", "version": "0.0.0" },
+  "tools": [
+    {
+      "name": "fetch_thing",
+      "description": "Its input schema points at an external document.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "thing": { "$ref": "https://acme.example/schemas/Thing.json" }
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,9 @@
+{
+  "type": "object",
+  "required": ["name", "team_id"],
+  "properties": {
+    "name": { "type": "string" },
+    "team_id": { "type": "string" },
+    "template": { "type": "string" }
+  }
+}

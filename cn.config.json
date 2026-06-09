@@ -1,0 +1,11 @@
+{
+  "_comment": "Inputs run by a bare `cn run` (no flags). Paths are relative to this file. The GitHub PAT comes from .env / env (CN_GITHUB_PAT), never stored here. Output goes to ./out/<label>/ per input; `--ir` also collects each IR into ./out/ir/<label>.json.",
+  "out": "out",
+  "inputs": [
+    { "github": "DCode-v05/Test" },
+    { "openapi": "samples/openapi/tasks-api.yaml" },
+    { "sdk": "samples/sdk-typescript" },
+    { "sdk": "samples/sdk-python" },
+    { "mcp": "samples/mcp/tasks-tools.json" }
+  ]
+}
