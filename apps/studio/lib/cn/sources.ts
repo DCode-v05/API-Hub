@@ -1,9 +1,10 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { dirname, join, resolve } from 'node:path';
+import { dirname, join } from 'node:path';
 import type { GithubSource, McpSource, OpenApiSource, SdkSource, SourceRef } from '@cn/contracts';
 import type { RunRequest } from '../events';
+import { resolveUserPath } from '../server/paths';
 
 export interface BuiltSource {
   source: SourceRef;
@@ -43,8 +44,10 @@ export async function buildSourceFromRequest(req: RunRequest): Promise<BuiltSour
     case 'github': {
       const repo = (req.repo ?? '').trim();
       if (!repo || !repo.includes('/')) return { error: 'Enter a GitHub repo as "owner/repo".' };
-      const pat = (req.pat ?? '').trim() || envPat();
-      if (!pat) return { error: 'A GitHub PAT is required — enter one, or set CN_GITHUB_PAT in .env.' };
+      // No silent .env fallback — the studio always requires an explicit token (typed or a saved PAT
+      // resolved by the API route before this point).
+      const pat = (req.pat ?? '').trim();
+      if (!pat) return { error: 'A GitHub PAT is required — enter a token or select a saved one.' };
       const source: GithubSource = { kind: 'github', repo, pat };
       if (req.ref?.trim()) source.ref = req.ref.trim();
       if (req.spec?.trim()) source.spec = req.spec.trim();
@@ -56,7 +59,7 @@ export async function buildSourceFromRequest(req: RunRequest): Promise<BuiltSour
         return { source: s };
       }
       if (req.openapiPath?.trim()) {
-        const p = resolve(req.openapiPath.trim());
+        const p = resolveUserPath(req.openapiPath.trim());
         if (!existsSync(p)) return { error: `File not found: ${req.openapiPath}` };
         return { source: { kind: 'openapi', location: p } };
       }
@@ -69,7 +72,7 @@ export async function buildSourceFromRequest(req: RunRequest): Promise<BuiltSour
     case 'sdk': {
       const p = (req.sdkPath ?? '').trim();
       if (!p) return { error: 'Enter the local path to the SDK directory.' };
-      const abs = resolve(p);
+      const abs = resolveUserPath(p);
       if (!existsSync(abs)) return { error: `Path not found: ${p}` };
       const source: SdkSource = { kind: 'sdk', path: abs };
       if (req.lang === 'typescript' || req.lang === 'python') source.language = req.lang;
@@ -82,7 +85,7 @@ export async function buildSourceFromRequest(req: RunRequest): Promise<BuiltSour
       }
       if (req.mcpUrl?.trim()) return { source: { kind: 'mcp', target: req.mcpUrl.trim() } };
       if (req.mcpPath?.trim()) {
-        const p = resolve(req.mcpPath.trim());
+        const p = resolveUserPath(req.mcpPath.trim());
         if (!existsSync(p)) return { error: `File not found: ${req.mcpPath}` };
         return { source: { kind: 'mcp', target: p } };
       }

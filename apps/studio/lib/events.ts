@@ -57,7 +57,10 @@ export interface RunRequest {
   sample?: SampleId;
   // github
   repo?: string;
+  /** A raw token typed for this run only (never persisted). */
   pat?: string;
+  /** A reference to a saved, encrypted PAT in the user's vault; resolved server-side. */
+  patId?: string;
   ref?: string;
   spec?: string;
   // openapi  (provide exactly one of url / content / path)
