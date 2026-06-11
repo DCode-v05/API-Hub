@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { ArrowRight, Binary, DownloadCloud, Share2, Sparkles, Wand2 } from 'lucide-react';
+import { ArrowRight, Binary, DownloadCloud, Share2, Sparkles, Terminal, Wand2 } from 'lucide-react';
 import { INPUT_ITEMS, TOOL_ITEMS } from '@/components/app/nav';
 import { requireUser } from '@/lib/server/session';
 
@@ -41,10 +41,10 @@ export default async function HomePage() {
               <ArrowRight className="h-4 w-4" />
             </Link>
             <Link
-              href="/cli"
+              href="/github"
               className="inline-flex h-10 items-center gap-2 rounded-md border border-border px-5 text-sm font-medium text-foreground transition-colors hover:bg-muted"
             >
-              Open the CLI
+              Connect a GitHub repo
             </Link>
           </div>
         </div>
@@ -68,12 +68,7 @@ export default async function HomePage() {
 
       {/* Input types */}
       <section className="mt-10">
-        <div className="mb-3 flex items-baseline justify-between">
-          <h2 className="text-sm font-semibold tracking-tight">Choose an input</h2>
-          <span className="text-xs text-muted-foreground">
-            <span className="text-success">●</span> declared · <span className="text-warning">●</span> inferred
-          </span>
-        </div>
+        <h2 className="mb-3 text-sm font-semibold tracking-tight">Choose an input</h2>
         <div className="grid gap-4 sm:grid-cols-2">
           {INPUT_ITEMS.map((item) => (
             <Link
@@ -81,19 +76,8 @@ export default async function HomePage() {
               href={item.href}
               className="group relative flex flex-col gap-3 rounded-xl border border-border bg-card p-5 transition-all hover:border-foreground/20 hover:shadow-sm"
             >
-              <div className="flex items-center justify-between">
-                <div className="flex h-10 w-10 items-center justify-center rounded-lg border border-border bg-muted/40 text-foreground">
-                  <item.Icon className="h-5 w-5" />
-                </div>
-                <span
-                  className={`inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[11px] font-medium ${
-                    item.trust === 'declared'
-                      ? 'border border-success/25 bg-success/10 text-success'
-                      : 'border border-warning/25 bg-warning/10 text-warning'
-                  }`}
-                >
-                  {item.trust}
-                </span>
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg border border-border bg-muted/40 text-foreground">
+                <item.Icon className="h-5 w-5" />
               </div>
               <div>
                 <div className="flex items-center gap-1.5 text-[15px] font-semibold">
@@ -129,6 +113,21 @@ export default async function HomePage() {
               </div>
             </Link>
           ))}
+
+          {/* The CLI now lives inside each input page. */}
+          <div className="flex items-start gap-4 rounded-xl border border-dashed border-border bg-card/40 p-5">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-border bg-muted/40 text-muted-foreground">
+              <Terminal className="h-5 w-5" />
+            </div>
+            <div>
+              <div className="text-[15px] font-semibold">CLI</div>
+              <p className="mt-1 text-[13px] leading-relaxed text-muted-foreground">
+                Built into every input — flip the <span className="font-medium text-foreground">Studio / CLI</span> toggle (or press{' '}
+                <kbd className="rounded border border-border bg-muted px-1 font-mono text-[11px]">Ctrl ;</kbd>) on any source page for a
+                live terminal, command builder, and the full reference.
+              </p>
+            </div>
+          </div>
         </div>
       </section>
     </div>

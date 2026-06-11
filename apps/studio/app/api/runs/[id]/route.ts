@@ -8,7 +8,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
   const user = await getCurrentUser();
   if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
   const { id } = await params;
-  const payload = getRunPayload(user.id, id);
+  const payload = await getRunPayload(user.id, id);
   return payload ? Response.json(payload) : Response.json({ error: 'Not found' }, { status: 404 });
 }
 

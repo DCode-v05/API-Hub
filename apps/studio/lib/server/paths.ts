@@ -24,11 +24,6 @@ export function cnBin(): string {
   return join(repoRoot(), 'packages', 'cli', 'bin', 'cn.mjs');
 }
 
-/** Where the studio keeps its local data store (users, runs, presets, session secret). */
-export function dataDir(): string {
-  return process.env['STUDIO_DATA_DIR'] || join(process.cwd(), '.data');
-}
-
 /**
  * Resolve a user-supplied path. Relative paths resolve against the REPO ROOT (not the studio's cwd,
  * which is apps/studio) so intuitive inputs like `samples/sdk-typescript` work as typed.

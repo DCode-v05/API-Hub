@@ -8,7 +8,7 @@ export const dynamic = 'force-dynamic';
 export async function GET(): Promise<Response> {
   const user = await getCurrentUser();
   if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
-  return Response.json({ pats: listPats(user.id) });
+  return Response.json({ pats: await listPats(user.id) });
 }
 
 export async function POST(req: NextRequest): Promise<Response> {

@@ -4,10 +4,11 @@ import * as React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Menu, Moon, Sun, Workflow, X } from 'lucide-react';
-import type { UserDTO } from '@/lib/records';
+import type { PresetRecord, UserDTO } from '@/lib/records';
 import { cx } from '@/lib/ui';
+import { PRESETS_CHANGED, fetchAllPresets } from '@/lib/client/api';
 import { Button } from '@/components/ui';
-import { NAV, type NavItem } from './nav';
+import { INPUT_ITEMS, NAV, type NavItem } from './nav';
 import { UserMenu } from './UserMenu';
 
 function ThemeToggle() {
@@ -62,12 +63,6 @@ function NavLinks({ pathname, onNavigate }: { pathname: string; onNavigate?: () 
                 >
                   <item.Icon className={cx('h-4 w-4 shrink-0', active ? 'text-foreground' : 'text-muted-foreground group-hover:text-foreground')} />
                   {item.label}
-                  {item.trust ? (
-                    <span
-                      className={cx('ml-auto h-1.5 w-1.5 rounded-full', item.trust === 'declared' ? 'bg-success' : 'bg-warning')}
-                      title={`${item.trust} trust`}
-                    />
-                  ) : null}
                 </Link>
               );
             })}
@@ -78,17 +73,55 @@ function NavLinks({ pathname, onNavigate }: { pathname: string; onNavigate?: () 
   );
 }
 
+/** Saved presets, listed below the nav. Clicking one opens that input page and loads the preset. */
+function SidebarPresets({ onNavigate }: { onNavigate?: () => void }) {
+  const [presets, setPresets] = React.useState<PresetRecord[] | null>(null);
+
+  React.useEffect(() => {
+    let alive = true;
+    const load = () => fetchAllPresets().then((p) => alive && setPresets(p));
+    void load();
+    const onChange = () => void load();
+    window.addEventListener(PRESETS_CHANGED, onChange);
+    return () => {
+      alive = false;
+      window.removeEventListener(PRESETS_CHANGED, onChange);
+    };
+  }, []);
+
+  if (!presets || presets.length === 0) return null;
+
+  return (
+    <div className="space-y-1">
+      <div className="px-3 pb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Saved presets</div>
+      {presets.map((p) => {
+        const Icon = INPUT_ITEMS.find((i) => i.href === `/${p.kind}`)?.Icon;
+        return (
+          <Link
+            key={p.id}
+            href={`/${p.kind}?preset=${p.id}`}
+            onClick={onNavigate}
+            title={`${p.name} · ${p.kind}`}
+            className="group flex items-center gap-2.5 rounded-md px-3 py-1.5 text-[13px] font-medium text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground"
+          >
+            {Icon ? <Icon className="h-4 w-4 shrink-0 text-muted-foreground group-hover:text-foreground" /> : null}
+            <span className="truncate">{p.name}</span>
+          </Link>
+        );
+      })}
+    </div>
+  );
+}
+
 function Brand() {
   return (
     <Link href="/" className="flex items-center gap-2.5">
-      <div className="flex h-7 w-7 items-center justify-center rounded-md bg-foreground text-background">
+      <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-foreground text-background">
         <Workflow className="h-4 w-4" />
       </div>
-      <div className="flex items-baseline gap-2">
-        <span className="text-sm font-semibold tracking-tight">Connector Network</span>
-        <span className="rounded border border-border px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
-          Studio
-        </span>
+      <div className="flex flex-col leading-none">
+        <span className="text-[13px] font-semibold tracking-tight">Connector Network</span>
+        <span className="mt-1 font-mono text-[9px] uppercase tracking-[0.18em] text-muted-foreground">Studio</span>
       </div>
     </Link>
   );
@@ -105,14 +138,15 @@ export function AppShell({ user, children }: { user: UserDTO; children: React.Re
   }, [pathname]);
 
   return (
-    <div className="min-h-screen lg:grid lg:grid-cols-[256px_1fr]">
+    <div className="min-h-screen lg:grid lg:grid-cols-[208px_1fr]">
       {/* Desktop sidebar */}
       <aside className="sticky top-0 hidden h-screen flex-col border-r border-border bg-card/40 lg:flex">
-        <div className="flex h-14 items-center border-b border-border px-5">
+        <div className="flex h-14 items-center border-b border-border px-4">
           <Brand />
         </div>
-        <div className="flex-1 overflow-y-auto p-3">
+        <div className="flex-1 space-y-5 overflow-y-auto p-3">
           <NavLinks pathname={pathname} />
+          <SidebarPresets />
         </div>
       </aside>
 
@@ -127,8 +161,9 @@ export function AppShell({ user, children }: { user: UserDTO; children: React.Re
                 <X className="h-4 w-4" />
               </Button>
             </div>
-            <div className="flex-1 overflow-y-auto p-3">
+            <div className="flex-1 space-y-5 overflow-y-auto p-3">
               <NavLinks pathname={pathname} onNavigate={() => setMobileOpen(false)} />
+              <SidebarPresets onNavigate={() => setMobileOpen(false)} />
             </div>
           </aside>
         </div>

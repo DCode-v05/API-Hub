@@ -13,6 +13,23 @@ export async function fetchPresets(kind: StageSourceKind): Promise<PresetRecord[
   }
 }
 
+/** All of the user's presets, across every input kind (for the sidebar). */
+export async function fetchAllPresets(): Promise<PresetRecord[]> {
+  try {
+    const res = await fetch('/api/presets', { cache: 'no-store' });
+    if (!res.ok) return [];
+    return ((await res.json()) as { presets?: PresetRecord[] }).presets ?? [];
+  } catch {
+    return [];
+  }
+}
+
+/** Fired after a preset is saved/deleted so the sidebar list can refresh. */
+export const PRESETS_CHANGED = 'cn:presets-changed';
+export function notifyPresetsChanged(): void {
+  if (typeof window !== 'undefined') window.dispatchEvent(new Event(PRESETS_CHANGED));
+}
+
 export async function savePreset(kind: StageSourceKind, name: string, request: RunRequest): Promise<PresetRecord | null> {
   try {
     const res = await fetch('/api/presets', {

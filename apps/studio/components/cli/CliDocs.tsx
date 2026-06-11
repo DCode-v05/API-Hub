@@ -28,21 +28,9 @@ function Row({ name, children }: { name: string; children: React.ReactNode }) {
   );
 }
 
-const TOC = [
-  ['overview', 'Overview'],
-  ['invoke', 'Invoking cn'],
-  ['commands', 'Commands'],
-  ['inputs', 'Inputs'],
-  ['options', 'Options'],
-  ['config', 'cn.config.json & .env'],
-  ['examples', 'Examples'],
-  ['guarantees', 'Guarantees'],
-] as const;
-
 export function CliDocs() {
   return (
-    <div className="grid gap-8 lg:grid-cols-[1fr_180px]">
-      <div className="min-w-0 space-y-10">
+    <div className="space-y-10">
         <Section id="overview" title="Overview">
           <p className="text-sm leading-relaxed text-muted-foreground">
             <code className="font-mono text-foreground">cn</code> is the Connector Network CLI. A source climbs once to a
@@ -148,18 +136,6 @@ export function CliDocs() {
             <li><span className="font-medium text-foreground">Repair never mutates:</span> proposals are drafted for a human to freeze — never applied.</li>
           </ul>
         </Section>
-      </div>
-
-      <nav className="hidden lg:block">
-        <div className="sticky top-20 space-y-1">
-          <div className="pb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">On this page</div>
-          {TOC.map(([id, label]) => (
-            <a key={id} href={`#${id}`} className="block rounded-md px-2 py-1 text-[13px] text-muted-foreground transition-colors hover:bg-muted hover:text-foreground">
-              {label}
-            </a>
-          ))}
-        </div>
-      </nav>
     </div>
   );
 }

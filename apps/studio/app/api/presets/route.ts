@@ -10,7 +10,7 @@ export async function GET(req: NextRequest): Promise<Response> {
   const user = await getCurrentUser();
   if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
   const kind = req.nextUrl.searchParams.get('kind') as StageSourceKind | null;
-  return Response.json({ presets: listPresets(user.id, kind ?? undefined) });
+  return Response.json({ presets: await listPresets(user.id, kind ?? undefined) });
 }
 
 export async function POST(req: NextRequest): Promise<Response> {

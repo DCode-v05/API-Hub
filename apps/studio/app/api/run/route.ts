@@ -146,7 +146,7 @@ export async function POST(req: NextRequest): Promise<Response> {
         }
         // Resolve a saved PAT (referenced by id) to a real token — server-side, for this user only.
         if (body.kind === 'github' && body.patId && !body.pat?.trim()) {
-          const token = getPatToken(user.id, body.patId);
+          const token = await getPatToken(user.id, body.patId);
           if (token) body.pat = token;
         }
         built = await buildSourceFromRequest(body);

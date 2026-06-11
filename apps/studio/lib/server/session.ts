@@ -2,12 +2,12 @@ import { createHmac, timingSafeEqual } from 'node:crypto';
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import type { UserDTO } from '../records';
-import { findUserById, getSecret, type User } from './store';
+import { ensureReady, getSecret } from './db';
+import { findUserById, type User } from './store';
 
 // Stateless sessions: the cookie carries `userId.expiry` plus an HMAC signature over the secret.
-// No server-side session table to keep — verifying is a constant-time signature check. Good enough
-// for a self-hosted single-tenant tool; rotate STUDIO_SECRET (or delete .data/secret) to log
-// everyone out.
+// No server-side session table to keep — verifying is a constant-time signature check. The secret
+// lives in the DB (app_meta) unless STUDIO_SECRET is set; rotate it to log everyone out.
 
 const COOKIE = 'cn_session';
 const MAX_AGE_S = 60 * 60 * 24 * 30; // 30 days
@@ -38,6 +38,7 @@ function readToken(token: string): string | null {
 }
 
 export async function setSessionCookie(userId: string): Promise<void> {
+  await ensureReady(); // the signing secret must be loaded before makeToken()
   const store = await cookies();
   store.set(COOKIE, makeToken(userId), {
     httpOnly: true,
@@ -55,11 +56,13 @@ export async function clearSessionCookie(): Promise<void> {
 }
 
 export async function getCurrentUser(): Promise<User | null> {
+  // No cookie → no DB work (keeps /login and logged-out requests off the database).
   const token = (await cookies()).get(COOKIE)?.value;
   if (!token) return null;
+  await ensureReady();
   const userId = readToken(token);
   if (!userId) return null;
-  return findUserById(userId) ?? null;
+  return (await findUserById(userId)) ?? null;
 }
 
 export function toDTO(user: User): UserDTO {

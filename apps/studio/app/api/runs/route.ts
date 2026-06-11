@@ -12,5 +12,5 @@ export async function GET(req: NextRequest): Promise<Response> {
   const kind = req.nextUrl.searchParams.get('kind') as StageSourceKind | null;
   const limitRaw = Number(req.nextUrl.searchParams.get('limit'));
   const limit = Number.isFinite(limitRaw) && limitRaw > 0 ? Math.min(limitRaw, 200) : 50;
-  return Response.json({ runs: listRuns(user.id, kind ?? undefined, limit) });
+  return Response.json({ runs: await listRuns(user.id, kind ?? undefined, limit) });
 }

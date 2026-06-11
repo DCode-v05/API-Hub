@@ -1,15 +1,12 @@
 import { createCipheriv, createDecipheriv, createHash, randomBytes } from 'node:crypto';
-import { existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
-import { join } from 'node:path';
 import type { PatDTO, PresetRecord, RunMeta } from '../records';
 import type { RunRequest, StageSourceKind } from '../events';
-import { dataDir } from './paths';
+import { ensureReady, getSecret, query } from './db';
 
 /**
- * A tiny file-backed store. Deliberately dependency-free (no SQLite / native module) so it builds
- * and runs anywhere; the access functions below are the only entry points, so swapping in a real
- * database later is a localized change. Everything is lazy — nothing touches the filesystem at
- * import time (which would break `next build`'s static analysis).
+ * The data store, backed by PostgreSQL (see ./db.ts). These are the only entry points the rest of
+ * the app uses; reads return promises now. PAT tokens are encrypted at rest under the instance
+ * secret; everything else is plain columns / JSONB.
  */
 
 export interface User {
@@ -22,94 +19,19 @@ export interface User {
   createdAt: string;
 }
 
-/** A stored PAT — the token is encrypted at rest (AES-256-GCM under the instance secret). */
-export interface PatRecord {
-  id: string;
-  userId: string;
-  name: string;
-  last4: string;
-  iv: string;
-  ct: string;
-  tag: string;
-  createdAt: string;
-}
-
-interface DB {
-  users: User[];
-  presets: PresetRecord[];
-  runs: RunMeta[];
-  pats: PatRecord[];
-}
-
-const RUN_CAP = 200; // keep the newest N runs per store; older ones are pruned
-
-function ensureDir(): string {
-  const d = dataDir();
-  if (!existsSync(d)) mkdirSync(d, { recursive: true });
-  const runs = join(d, 'runs');
-  if (!existsSync(runs)) mkdirSync(runs, { recursive: true });
-  return d;
-}
-
-function dbPath(): string {
-  return join(dataDir(), 'db.json');
-}
-
-function readDb(): DB {
-  ensureDir();
-  try {
-    const parsed = JSON.parse(readFileSync(dbPath(), 'utf8')) as Partial<DB>;
-    return {
-      users: parsed.users ?? [],
-      presets: parsed.presets ?? [],
-      runs: parsed.runs ?? [],
-      pats: parsed.pats ?? [],
-    };
-  } catch {
-    return { users: [], presets: [], runs: [], pats: [] };
-  }
-}
-
-function writeDb(db: DB): void {
-  ensureDir();
-  const tmp = dbPath() + '.tmp';
-  writeFileSync(tmp, JSON.stringify(db, null, 2));
-  renameSync(tmp, dbPath()); // atomic replace — never leaves a half-written db.json
-}
+const RUN_CAP = 200; // keep the newest N runs per user
 
 function id(): string {
   return randomBytes(12).toString('hex');
 }
 
-// Serialize writes so two concurrent requests can't read-modify-write over each other.
-let lock: Promise<void> = Promise.resolve();
-async function withLock<T>(fn: () => T): Promise<T> {
-  const prev = lock;
-  let release!: () => void;
-  lock = new Promise<void>((r) => (release = r));
-  await prev;
-  try {
-    return fn();
-  } finally {
-    release();
-  }
-}
-
-/* ── Session signing secret ───────────────────────────────────────────────── */
-
-export function getSecret(): Buffer {
-  if (process.env['STUDIO_SECRET']) return Buffer.from(process.env['STUDIO_SECRET'], 'utf8');
-  const p = join(ensureDir(), 'secret');
-  if (existsSync(p)) return readFileSync(p);
-  const secret = randomBytes(32);
-  writeFileSync(p, secret);
-  return secret;
+function iso(v: unknown): string {
+  return new Date(v as string).toISOString();
 }
 
 /* ── Secret-box (AES-256-GCM) for tokens at rest ──────────────────────────── */
 
 function aesKey(): Buffer {
-  // Derive a fixed 32-byte key from the instance secret (which may be any length).
   return createHash('sha256').update(getSecret()).digest();
 }
 
@@ -132,39 +54,58 @@ function decryptSecret(rec: { iv: string; ct: string; tag: string }): string | u
 
 /* ── Users ────────────────────────────────────────────────────────────────── */
 
-export function findUserByEmail(email: string): User | undefined {
-  const lower = email.trim().toLowerCase();
-  return readDb().users.find((u) => u.emailLower === lower);
+interface UserRow {
+  id: string;
+  email: string;
+  email_lower: string;
+  name: string;
+  password_hash: string;
+  salt: string;
+  created_at: string;
 }
 
-export function findUserById(userId: string): User | undefined {
-  return readDb().users.find((u) => u.id === userId);
+function rowToUser(r: UserRow): User {
+  return {
+    id: r.id,
+    email: r.email,
+    emailLower: r.email_lower,
+    name: r.name,
+    passwordHash: r.password_hash,
+    salt: r.salt,
+    createdAt: iso(r.created_at),
+  };
 }
 
-export function userCount(): number {
-  return readDb().users.length;
+export async function findUserByEmail(email: string): Promise<User | undefined> {
+  const { rows } = await query<UserRow>(`SELECT * FROM users WHERE email_lower = $1`, [email.trim().toLowerCase()]);
+  return rows[0] ? rowToUser(rows[0]) : undefined;
+}
+
+export async function findUserById(userId: string): Promise<User | undefined> {
+  const { rows } = await query<UserRow>(`SELECT * FROM users WHERE id = $1`, [userId]);
+  return rows[0] ? rowToUser(rows[0]) : undefined;
 }
 
 export async function createUser(input: { email: string; name: string; passwordHash: string; salt: string }): Promise<User> {
-  return withLock(() => {
-    const db = readDb();
-    const emailLower = input.email.trim().toLowerCase();
-    if (db.users.some((u) => u.emailLower === emailLower)) {
-      throw new Error('That email is already registered.');
-    }
-    const user: User = {
-      id: id(),
-      email: input.email.trim(),
-      emailLower,
-      name: input.name.trim() || input.email.trim().split('@')[0],
-      passwordHash: input.passwordHash,
-      salt: input.salt,
-      createdAt: new Date().toISOString(),
-    };
-    db.users.push(user);
-    writeDb(db);
-    return user;
-  });
+  const email = input.email.trim();
+  const user: User = {
+    id: id(),
+    email,
+    emailLower: email.toLowerCase(),
+    name: input.name.trim() || email.split('@')[0],
+    passwordHash: input.passwordHash,
+    salt: input.salt,
+    createdAt: new Date().toISOString(),
+  };
+  // The UNIQUE(email_lower) constraint makes this race-safe: a duplicate inserts 0 rows.
+  const { rowCount } = await query(
+    `INSERT INTO users (id, email, email_lower, name, password_hash, salt, created_at)
+     VALUES ($1, $2, $3, $4, $5, $6, $7)
+     ON CONFLICT (email_lower) DO NOTHING`,
+    [user.id, user.email, user.emailLower, user.name, user.passwordHash, user.salt, user.createdAt],
+  );
+  if (rowCount === 0) throw new Error('That email is already registered.');
+  return user;
 }
 
 /* ── Presets ──────────────────────────────────────────────────────────────── */
@@ -175,142 +116,172 @@ function sanitizeRequest(req: RunRequest): RunRequest {
   return rest;
 }
 
-export async function createPreset(userId: string, kind: StageSourceKind, name: string, request: RunRequest): Promise<PresetRecord> {
-  return withLock(() => {
-    const db = readDb();
-    const preset: PresetRecord = {
-      id: id(),
-      userId,
-      kind,
-      name: name.trim() || `${kind} preset`,
-      request: sanitizeRequest(request),
-      createdAt: new Date().toISOString(),
-    };
-    db.presets.push(preset);
-    writeDb(db);
-    return preset;
-  });
+interface PresetRow {
+  id: string;
+  user_id: string;
+  kind: StageSourceKind;
+  name: string;
+  request: RunRequest;
+  created_at: string;
 }
 
-export function listPresets(userId: string, kind?: StageSourceKind): PresetRecord[] {
-  return readDb()
-    .presets.filter((p) => p.userId === userId && (!kind || p.kind === kind))
-    .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+function rowToPreset(r: PresetRow): PresetRecord {
+  return { id: r.id, userId: r.user_id, kind: r.kind, name: r.name, request: r.request, createdAt: iso(r.created_at) };
+}
+
+export async function createPreset(userId: string, kind: StageSourceKind, name: string, request: RunRequest): Promise<PresetRecord> {
+  const rec: PresetRecord = {
+    id: id(),
+    userId,
+    kind,
+    name: name.trim() || `${kind} preset`,
+    request: sanitizeRequest(request),
+    createdAt: new Date().toISOString(),
+  };
+  await query(
+    `INSERT INTO presets (id, user_id, kind, name, request, created_at) VALUES ($1, $2, $3, $4, $5, $6)`,
+    [rec.id, rec.userId, rec.kind, rec.name, JSON.stringify(rec.request), rec.createdAt],
+  );
+  return rec;
+}
+
+export async function listPresets(userId: string, kind?: StageSourceKind): Promise<PresetRecord[]> {
+  const { rows } = await query<PresetRow>(
+    `SELECT * FROM presets WHERE user_id = $1 AND ($2::text IS NULL OR kind = $2) ORDER BY created_at DESC`,
+    [userId, kind ?? null],
+  );
+  return rows.map(rowToPreset);
 }
 
 export async function deletePreset(userId: string, presetId: string): Promise<boolean> {
-  return withLock(() => {
-    const db = readDb();
-    const before = db.presets.length;
-    db.presets = db.presets.filter((p) => !(p.id === presetId && p.userId === userId));
-    if (db.presets.length === before) return false;
-    writeDb(db);
-    return true;
-  });
+  const { rowCount } = await query(`DELETE FROM presets WHERE id = $1 AND user_id = $2`, [presetId, userId]);
+  return rowCount > 0;
 }
 
 /* ── PAT vault ────────────────────────────────────────────────────────────── */
 
-function toPatDTO(p: PatRecord): PatDTO {
-  return { id: p.id, name: p.name, last4: p.last4, createdAt: p.createdAt };
+interface PatRow {
+  id: string;
+  name: string;
+  last4: string;
+  iv: string;
+  ct: string;
+  tag: string;
+  created_at: string;
 }
 
 export async function createPat(userId: string, name: string, token: string): Promise<PatDTO> {
   const trimmed = token.trim();
   if (!trimmed) throw new Error('Token is empty.');
-  return withLock(() => {
-    const db = readDb();
-    const enc = encryptSecret(trimmed);
-    const rec: PatRecord = {
-      id: id(),
-      userId,
-      name: name.trim() || 'token',
-      last4: trimmed.slice(-4),
-      iv: enc.iv,
-      ct: enc.ct,
-      tag: enc.tag,
-      createdAt: new Date().toISOString(),
-    };
-    db.pats.push(rec);
-    writeDb(db);
-    return toPatDTO(rec);
-  });
+  await ensureReady(); // the secret must be loaded before we encrypt
+  const enc = encryptSecret(trimmed);
+  const rec = {
+    id: id(),
+    name: name.trim() || 'token',
+    last4: trimmed.slice(-4),
+    createdAt: new Date().toISOString(),
+  };
+  await query(
+    `INSERT INTO pats (id, user_id, name, last4, iv, ct, tag, created_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+    [rec.id, userId, rec.name, rec.last4, enc.iv, enc.ct, enc.tag, rec.createdAt],
+  );
+  return { id: rec.id, name: rec.name, last4: rec.last4, createdAt: rec.createdAt };
 }
 
-export function listPats(userId: string): PatDTO[] {
-  return readDb()
-    .pats.filter((p) => p.userId === userId)
-    .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
-    .map(toPatDTO);
+export async function listPats(userId: string): Promise<PatDTO[]> {
+  const { rows } = await query<PatRow>(`SELECT * FROM pats WHERE user_id = $1 ORDER BY created_at DESC`, [userId]);
+  return rows.map((r) => ({ id: r.id, name: r.name, last4: r.last4, createdAt: iso(r.created_at) }));
 }
 
 /** Decrypt and return a stored token. Server-only — never expose the result to the browser. */
-export function getPatToken(userId: string, patId: string): string | undefined {
-  const rec = readDb().pats.find((p) => p.id === patId && p.userId === userId);
-  return rec ? decryptSecret(rec) : undefined;
+export async function getPatToken(userId: string, patId: string): Promise<string | undefined> {
+  const { rows } = await query<PatRow>(`SELECT iv, ct, tag FROM pats WHERE id = $1 AND user_id = $2`, [patId, userId]);
+  return rows[0] ? decryptSecret(rows[0]) : undefined;
 }
 
 export async function deletePat(userId: string, patId: string): Promise<boolean> {
-  return withLock(() => {
-    const db = readDb();
-    const before = db.pats.length;
-    db.pats = db.pats.filter((p) => !(p.id === patId && p.userId === userId));
-    if (db.pats.length === before) return false;
-    writeDb(db);
-    return true;
-  });
+  const { rowCount } = await query(`DELETE FROM pats WHERE id = $1 AND user_id = $2`, [patId, userId]);
+  return rowCount > 0;
 }
 
 /* ── Runs ─────────────────────────────────────────────────────────────────── */
 
+interface RunRow {
+  id: string;
+  user_id: string;
+  kind: StageSourceKind;
+  label: string;
+  describe: string;
+  ok: boolean;
+  valid: boolean;
+  total_ms: number;
+  op_count: number;
+  ir_hash: string;
+  file_count: number;
+  error_count: number;
+  warning_count: number;
+  proposal_count: number;
+  created_at: string;
+}
+
+function rowToRunMeta(r: RunRow): RunMeta {
+  return {
+    id: r.id,
+    userId: r.user_id,
+    kind: r.kind,
+    label: r.label,
+    describe: r.describe,
+    ok: r.ok,
+    valid: r.valid,
+    totalMs: r.total_ms,
+    opCount: r.op_count,
+    irHash: r.ir_hash,
+    fileCount: r.file_count,
+    errorCount: r.error_count,
+    warningCount: r.warning_count,
+    proposalCount: r.proposal_count,
+    createdAt: iso(r.created_at),
+  };
+}
+
 export async function saveRun(meta: RunMeta, payload: unknown): Promise<void> {
-  await withLock(() => {
-    const db = readDb();
-    db.runs.unshift(meta);
-    // Prune the oldest runs beyond the cap, deleting their payload files too.
-    if (db.runs.length > RUN_CAP) {
-      for (const old of db.runs.slice(RUN_CAP)) {
-        try {
-          rmSync(join(dataDir(), 'runs', `${old.id}.json`), { force: true });
-        } catch {
-          /* best effort */
-        }
-      }
-      db.runs = db.runs.slice(0, RUN_CAP);
-    }
-    writeDb(db);
-  });
-  writeFileSync(join(ensureDir(), 'runs', `${meta.id}.json`), JSON.stringify(payload, null, 2));
+  await query(
+    `INSERT INTO runs (id, user_id, kind, label, describe, ok, valid, total_ms, op_count, ir_hash,
+                       file_count, error_count, warning_count, proposal_count, payload, created_at)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)`,
+    [
+      meta.id, meta.userId, meta.kind, meta.label, meta.describe, meta.ok, meta.valid, meta.totalMs,
+      meta.opCount, meta.irHash, meta.fileCount, meta.errorCount, meta.warningCount, meta.proposalCount,
+      JSON.stringify(payload), meta.createdAt,
+    ],
+  );
+  // Keep only the newest RUN_CAP runs per user.
+  await query(
+    `DELETE FROM runs WHERE user_id = $1
+       AND id NOT IN (SELECT id FROM runs WHERE user_id = $1 ORDER BY created_at DESC LIMIT $2)`,
+    [meta.userId, RUN_CAP],
+  );
 }
 
-export function listRuns(userId: string, kind?: StageSourceKind, limit = 50): RunMeta[] {
-  return readDb()
-    .runs.filter((r) => r.userId === userId && (!kind || r.kind === kind))
-    .slice(0, limit);
+export async function listRuns(userId: string, kind?: StageSourceKind, limit = 50): Promise<RunMeta[]> {
+  const { rows } = await query<RunRow>(
+    `SELECT id, user_id, kind, label, describe, ok, valid, total_ms, op_count, ir_hash, file_count,
+            error_count, warning_count, proposal_count, created_at
+       FROM runs
+      WHERE user_id = $1 AND ($2::text IS NULL OR kind = $2)
+      ORDER BY created_at DESC
+      LIMIT $3`,
+    [userId, kind ?? null, limit],
+  );
+  return rows.map(rowToRunMeta);
 }
 
-export function getRunPayload(userId: string, runId: string): unknown | null {
-  const meta = readDb().runs.find((r) => r.id === runId && r.userId === userId);
-  if (!meta) return null;
-  try {
-    return JSON.parse(readFileSync(join(dataDir(), 'runs', `${runId}.json`), 'utf8'));
-  } catch {
-    return null;
-  }
+export async function getRunPayload(userId: string, runId: string): Promise<unknown | null> {
+  const { rows } = await query<{ payload: unknown }>(`SELECT payload FROM runs WHERE id = $1 AND user_id = $2`, [runId, userId]);
+  return rows[0] ? rows[0].payload : null;
 }
 
 export async function deleteRun(userId: string, runId: string): Promise<boolean> {
-  return withLock(() => {
-    const db = readDb();
-    const before = db.runs.length;
-    db.runs = db.runs.filter((r) => !(r.id === runId && r.userId === userId));
-    if (db.runs.length === before) return false;
-    writeDb(db);
-    try {
-      rmSync(join(dataDir(), 'runs', `${runId}.json`), { force: true });
-    } catch {
-      /* best effort */
-    }
-    return true;
-  });
+  const { rowCount } = await query(`DELETE FROM runs WHERE id = $1 AND user_id = $2`, [runId, userId]);
+  return rowCount > 0;
 }

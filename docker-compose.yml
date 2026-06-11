@@ -1,0 +1,21 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: cn-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: connector_network
+    ports:
+      - '5433:5432'
+    volumes:
+      - cn_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U postgres -d connector_network']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  cn_pgdata:

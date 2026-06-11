@@ -1,7 +1,13 @@
+export interface CliFile {
+  path: string;
+  content: string;
+}
+
 export type CliEvent =
   | { t: 'start'; argv: string[] }
   | { t: 'out'; data: string }
   | { t: 'err'; data: string }
+  | { t: 'artifacts'; files: CliFile[]; truncated?: boolean }
   | { t: 'exit'; code: number };
 
 /** Split a command line into argv, honoring single/double quotes. No shell expansion. */
@@ -37,14 +43,20 @@ export function tokenize(input: string): string[] {
   return out;
 }
 
-/** POST argv to /api/cli and stream the child's output events to onEvent. */
-export async function runCliStream(args: string[], onEvent: (e: CliEvent) => void, signal?: AbortSignal): Promise<void> {
+/** POST argv to /api/cli and stream the child's output events to onEvent. `auth` carries the form's
+ * GitHub PAT (typed token or saved id) so the spawned cn uses it instead of the repo .env. */
+export async function runCliStream(
+  args: string[],
+  onEvent: (e: CliEvent) => void,
+  signal?: AbortSignal,
+  auth?: { pat?: string; patId?: string },
+): Promise<void> {
   let res: Response;
   try {
     res = await fetch('/api/cli', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ args }),
+      body: JSON.stringify({ args, pat: auth?.pat, patId: auth?.patId }),
       signal,
     });
   } catch (e) {

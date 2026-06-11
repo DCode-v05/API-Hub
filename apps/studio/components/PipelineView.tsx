@@ -5,7 +5,7 @@ import { Binary, Check, DownloadCloud, Share2, Wand2, X } from 'lucide-react';
 import { STAGES, type StageId } from '@/lib/events';
 import type { RunState, StageStatus } from '@/lib/state';
 import { cx, fmtMs } from '@/lib/ui';
-import { Badge, Card, CardContent, CardHeader, CardTitle, Spinner } from './ui';
+import { Card, CardContent, CardHeader, CardTitle, Spinner } from './ui';
 
 const STAGE_META: Record<StageId, { name: string; desc: string; Icon: React.ComponentType<{ className?: string }> }> = {
   acquire: { name: 'Acquire', desc: 'fetch · pin · bundle', Icon: DownloadCloud },
@@ -68,9 +68,6 @@ export function PipelineView({ state }: { state: RunState }) {
           ) : null}
         </div>
         <div className="flex shrink-0 items-center gap-2">
-          {state.acquire ? (
-            <Badge variant={state.acquire.trust === 'declared' ? 'success' : 'warning'}>{state.acquire.trust}</Badge>
-          ) : null}
           {state.totalMs != null ? <span className="font-mono text-xs text-muted-foreground">{fmtMs(state.totalMs)}</span> : null}
         </div>
       </CardHeader>

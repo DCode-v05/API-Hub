@@ -6,6 +6,11 @@ function quote(arg: string): string {
   return /[\s"'`$&|;<>(){}\\]/.test(arg) ? `"${arg.replace(/(["\\$`])/g, '\\$1')}"` : arg;
 }
 
+/** Render an argv (without the leading `cn`) as a copy-pasteable `cn …` command string. */
+export function cnDisplay(argv: string[]): string {
+  return ['cn', ...argv].map(quote).join(' ');
+}
+
 export interface CliCommand {
   /** argv without the leading `cn` (what the in-studio terminal spawns). */
   argv: string[];
@@ -25,7 +30,7 @@ export function toCliCommand(req: RunRequest, command: 'run' | 'acquire' | 'inge
       argv.push('--github', req.repo?.trim() || 'owner/repo');
       if (req.ref?.trim()) argv.push('--ref', req.ref.trim());
       if (req.spec?.trim()) argv.push('--spec', req.spec.trim());
-      note = 'The PAT is read from your .env (CN_GITHUB_PAT) — never put a token on the command line.';
+      note = '';
       break;
     }
     case 'openapi': {
@@ -54,5 +59,5 @@ export function toCliCommand(req: RunRequest, command: 'run' | 'acquire' | 'inge
     }
   }
 
-  return { argv, display: ['cn', ...argv].map(quote).join(' '), note };
+  return { argv, display: cnDisplay(argv), note };
 }

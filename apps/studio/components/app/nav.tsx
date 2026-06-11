@@ -1,4 +1,4 @@
-import { FileJson, Github, History, Home, Package, Plug, Terminal } from 'lucide-react';
+import { FileJson, Github, History, Home, Package, Plug } from 'lucide-react';
 
 export interface NavItem {
   href: string;
@@ -44,13 +44,6 @@ export const NAV: NavItem[] = [
     group: 'inputs',
     trust: 'inferred',
     blurb: 'Read an MCP server’s advertised tools — manifest, URL, or a live stdio command.',
-  },
-  {
-    href: '/cli',
-    label: 'CLI',
-    Icon: Terminal,
-    group: 'tools',
-    blurb: 'A live terminal, a visual command builder, and the full `cn` reference.',
   },
   {
     href: '/history',
