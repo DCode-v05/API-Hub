@@ -1,5 +1,5 @@
 import type { Ir } from '@cn/contracts';
-import type { DiagnosticDTO, ProposalDTO, StageSourceKind, SurfaceDTO } from './events';
+import type { DiagnosticDTO, ProposalDTO, StageSourceKind, SurfaceDTO, TestResult } from './events';
 import type { RunMeta } from './records';
 import type { RunState } from './state';
 
@@ -20,6 +20,7 @@ export interface RunPayload {
   ingest?: { valid: boolean; diagnostics: DiagnosticDTO[]; proposals: ProposalDTO[] };
   ir?: Ir;
   surfaces?: SurfaceDTO[];
+  tests?: { tests: TestResult[]; passed: number; failed: number };
   error?: { stage: string; message: string };
 }
 
@@ -36,11 +37,14 @@ export function payloadToState(p: RunPayload): RunState {
       ingest: { status: p.ingest ? (p.ingest.valid ? 'done' : 'error') : 'pending' },
       build: { status: p.ir ? 'done' : 'pending' },
       project: { status: p.surfaces ? 'done' : 'pending' },
+      test: { status: p.tests ? (p.tests.failed === 0 ? 'done' : 'error') : 'pending' },
     },
     acquire: p.acquire,
     ingest: p.ingest,
     ir: p.ir,
     surfaces: p.surfaces,
+    tests: p.tests?.tests,
+    testSummary: p.tests ? { passed: p.tests.passed, failed: p.tests.failed, ms: 0 } : undefined,
     error: p.error,
     totalMs: p.meta.totalMs,
   };

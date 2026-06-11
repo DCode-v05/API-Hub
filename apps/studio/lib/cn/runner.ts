@@ -5,6 +5,7 @@ import { buildIr } from '@cn/ir-core';
 import { project } from '@cn/projection';
 import type { DiagnosticDTO, ProposalDTO, RunEvent, StageSourceKind } from '../events';
 import { labelFor } from './sources';
+import { runConversionTests } from './tests';
 
 const HTTP_METHODS = new Set(['get', 'put', 'post', 'delete', 'options', 'head', 'patch', 'trace']);
 
@@ -88,7 +89,16 @@ export async function runPipeline(source: SourceRef, emit: (e: RunEvent) => void
     })),
   });
 
-  emit({ t: 'done', ok: true, ms: Date.now() - t0 });
+  // ── 5. test (verify the conversion: structure, op coverage, Pass^k, round-trip) ──
+  if (signal?.aborted) return;
+  await sleep(180);
+  emit({ t: 'stage', stage: 'test', status: 'running' });
+  const tt = Date.now();
+  const tests = await runConversionTests(validated, ir, projection);
+  const failed = tests.filter((x) => x.status === 'fail').length;
+  emit({ t: 'test', ms: Date.now() - tt, tests, passed: tests.length - failed, failed });
+
+  emit({ t: 'done', ok: failed === 0, ms: Date.now() - t0 });
 }
 
 function toDiagnostics(ds: readonly Diagnostic[]): DiagnosticDTO[] {

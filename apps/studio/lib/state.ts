@@ -1,5 +1,5 @@
 import type { Ir } from '@cn/contracts';
-import type { DiagnosticDTO, ProposalDTO, RunEvent, StageId, StageSourceKind, SurfaceDTO } from './events';
+import type { DiagnosticDTO, ProposalDTO, RunEvent, StageId, StageSourceKind, SurfaceDTO, TestResult } from './events';
 
 export type StageStatus = 'pending' | 'running' | 'done' | 'error';
 
@@ -23,6 +23,8 @@ export interface RunState {
   ingest?: { valid: boolean; diagnostics: DiagnosticDTO[]; proposals: ProposalDTO[] };
   ir?: Ir;
   surfaces?: SurfaceDTO[];
+  tests?: TestResult[];
+  testSummary?: { passed: number; failed: number; ms: number };
   error?: { stage: string; message: string };
   totalMs?: number;
 }
@@ -35,6 +37,7 @@ export const INITIAL_RUN: RunState = {
     ingest: { status: 'pending' },
     build: { status: 'pending' },
     project: { status: 'pending' },
+    test: { status: 'pending' },
   },
 };
 
@@ -76,6 +79,13 @@ export function reduce(state: RunState, e: RunEvent): RunState {
       return { ...state, stages: { ...state.stages, build: { status: 'done', ms: e.ms } }, ir: e.ir };
     case 'project':
       return { ...state, stages: { ...state.stages, project: { status: 'done', ms: e.ms } }, surfaces: e.surfaces };
+    case 'test':
+      return {
+        ...state,
+        stages: { ...state.stages, test: { status: e.failed === 0 ? 'done' : 'error', ms: e.ms } },
+        tests: e.tests,
+        testSummary: { passed: e.passed, failed: e.failed, ms: e.ms },
+      };
     case 'error':
       return {
         ...state,

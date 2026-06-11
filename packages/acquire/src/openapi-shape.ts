@@ -34,6 +34,10 @@ export function buildOpenApiFromOperations(args: {
 }): { document: OpenApiDocument; diagnostics: Diagnostic[] } {
   const diagnostics: Diagnostic[] = [];
   const paths: Record<string, unknown> = {};
+  // JSON-Schema `$defs` carried by a tool's inputSchema (our generated MCP servers, and many
+  // third-party ones, use them for referenced/recursive models). Lift them to components/schemas
+  // and rewrite `#/$defs/X` → `#/components/schemas/X` so the assembled doc is self-contained.
+  const componentSchemas: Record<string, unknown> = {};
 
   for (const op of args.ops) {
     const method = (op.method ?? 'post').toLowerCase();
@@ -46,14 +50,14 @@ export function buildOpenApiFromOperations(args: {
     if (op.inputSchema) {
       operation['requestBody'] = {
         required: true,
-        content: { 'application/json': { schema: op.inputSchema } },
+        content: { 'application/json': { schema: liftDefs(op.inputSchema, componentSchemas) } },
       };
     }
     operation['responses'] = {
       '200': {
         description: 'derived response',
         ...(op.outputSchema
-          ? { content: { 'application/json': { schema: op.outputSchema } } }
+          ? { content: { 'application/json': { schema: liftDefs(op.outputSchema, componentSchemas) } } }
           : {}),
       },
     };
@@ -82,6 +86,12 @@ export function buildOpenApiFromOperations(args: {
     'x-cn-source': args.source,
     'x-cn-trust': 'inferred',
   };
+  // Surface any lifted `$defs` as resolvable components (key-sorted for deterministic output).
+  if (Object.keys(componentSchemas).length > 0) {
+    const sorted: Record<string, unknown> = {};
+    for (const k of Object.keys(componentSchemas).sort()) sorted[k] = componentSchemas[k];
+    document.components = { schemas: sorted };
+  }
 
   // Reverse-derived schemas (mcp inputSchema / sdk types) are copied verbatim and never went
   // through the OpenAPI bundler, so enforce origin-blindness here too: a tool/param schema that
@@ -96,4 +106,36 @@ export function buildOpenApiFromOperations(args: {
   }
 
   return { document, diagnostics };
+}
+
+function isObject(v: unknown): v is Record<string, unknown> {
+  return v !== null && typeof v === 'object' && !Array.isArray(v);
+}
+
+/** Clone a JSON Schema, hoisting its `$defs` into `into` and rewriting `#/$defs/X` refs to components. */
+function liftDefs(schema: Record<string, unknown>, into: Record<string, unknown>): Record<string, unknown> {
+  return rewrite(schema, into) as Record<string, unknown>;
+}
+
+function rewrite(node: unknown, into: Record<string, unknown>): unknown {
+  if (Array.isArray(node)) return node.map((n) => rewrite(n, into));
+  if (isObject(node)) {
+    const defs = node['$defs'];
+    if (isObject(defs)) {
+      for (const [name, def] of Object.entries(defs)) {
+        if (!(name in into)) into[name] = rewrite(def, into);
+      }
+    }
+    const out: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(node)) {
+      if (k === '$defs') continue;
+      if (k === '$ref' && typeof v === 'string' && v.startsWith('#/$defs/')) {
+        out[k] = '#/components/schemas/' + v.slice('#/$defs/'.length);
+      } else {
+        out[k] = rewrite(v, into);
+      }
+    }
+    return out;
+  }
+  return node;
 }

@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import { Binary, Check, DownloadCloud, Share2, Wand2, X } from 'lucide-react';
+import { Binary, Check, DownloadCloud, FlaskConical, Share2, Wand2, X } from 'lucide-react';
 import { STAGES, type StageId } from '@/lib/events';
 import type { RunState, StageStatus } from '@/lib/state';
 import { cx, fmtMs } from '@/lib/ui';
@@ -12,6 +12,7 @@ const STAGE_META: Record<StageId, { name: string; desc: string; Icon: React.Comp
   ingest: { name: 'Ingest', desc: 'adapt · validate · repair', Icon: Wand2 },
   build: { name: 'Build IR', desc: 'normalize · content-hash', Icon: Binary },
   project: { name: 'Project', desc: 'SDK · MCP · CLI · docs', Icon: Share2 },
+  test: { name: 'Test', desc: 'verify · Pass^k · round-trip', Icon: FlaskConical },
 };
 
 function StatusRing({ status, Icon }: { status: StageStatus; Icon: React.ComponentType<{ className?: string }> }) {
