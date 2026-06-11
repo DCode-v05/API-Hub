@@ -281,7 +281,7 @@ export function Terminal({
     : pat?.kind === 'choose'
       ? 'number, or "n" for a new token'
       : pat?.kind === 'token'
-        ? 'paste token (hidden) · Esc to cancel'
+        ? 'paste token  · Esc to cancel'
         : pat?.kind === 'save'
           ? 'y / n'
           : pat?.kind === 'name'
