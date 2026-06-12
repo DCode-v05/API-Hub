@@ -177,15 +177,28 @@ function readme(plan: ProjectionPlan): string {
 const HTTP_PY = `# ${DO_NOT_EDIT}
 from __future__ import annotations
 import json
+import random
+import time
+import urllib.error
 import urllib.request
 import urllib.parse
 from typing import Any, Optional
 
+_RETRY_STATUS = {429, 502, 503, 504}
+
 
 class HttpClient:
-    def __init__(self, base_url: str, token: Optional[str] = None) -> None:
+    def __init__(
+        self,
+        base_url: str,
+        token: Optional[str] = None,
+        timeout: float = 30.0,
+        max_retries: int = 2,
+    ) -> None:
         self._base_url = (base_url or "").rstrip("/")
         self._token = token
+        self._timeout = timeout
+        self._max_retries = max_retries
 
     def request(
         self,
@@ -211,8 +224,31 @@ class HttpClient:
         if body is not None:
             clean_body = {k: v for k, v in body.items() if v is not None}
             data = json.dumps(clean_body).encode()
-        req = urllib.request.Request(url, data=data, method=method, headers=hdrs)
-        with urllib.request.urlopen(req) as resp:  # noqa: S310
-            text = resp.read().decode()
-        return json.loads(text) if text else None
+        # Retry transient failures (429/5xx, network) with exponential backoff + jitter.
+        attempt = 0
+        while True:
+            req = urllib.request.Request(url, data=data, method=method, headers=hdrs)
+            try:
+                with urllib.request.urlopen(req, timeout=self._timeout) as resp:  # noqa: S310
+                    text = resp.read().decode()
+                return json.loads(text) if text else None
+            except urllib.error.HTTPError as exc:
+                if exc.code in _RETRY_STATUS and attempt < self._max_retries:
+                    self._backoff(attempt, exc.headers.get("retry-after"))
+                    attempt += 1
+                    continue
+                raise
+            except urllib.error.URLError:
+                if attempt < self._max_retries:
+                    self._backoff(attempt, None)
+                    attempt += 1
+                    continue
+                raise
+
+    def _backoff(self, attempt: int, retry_after: Optional[str]) -> None:
+        try:
+            seconds = float(retry_after) if retry_after else min(2 ** attempt, 8)
+        except ValueError:
+            seconds = min(2 ** attempt, 8)
+        time.sleep(seconds + random.random() * 0.25)
 `;
