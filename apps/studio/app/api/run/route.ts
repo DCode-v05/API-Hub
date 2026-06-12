@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 import type { NextRequest } from 'next/server';
 import { runPipeline } from '@/lib/cn/runner';
 import { buildSourceFromRequest } from '@/lib/cn/sources';
-import type { DiagnosticDTO, ProposalDTO, RunEvent, RunRequest, StageSourceKind, SurfaceDTO } from '@/lib/events';
+import type { DiagnosticDTO, ProposalDTO, RunEvent, RunRequest, StageSourceKind, SurfaceDTO, TestResult } from '@/lib/events';
 import type { RunMeta } from '@/lib/records';
 import { getCurrentUser } from '@/lib/server/session';
 import { getPatToken, saveRun } from '@/lib/server/store';
@@ -29,6 +29,7 @@ interface Accumulator {
   ingest?: { valid: boolean; diagnostics: DiagnosticDTO[]; proposals: ProposalDTO[] };
   ir?: Ir;
   surfaces?: SurfaceDTO[];
+  tests?: { tests: TestResult[]; passed: number; failed: number };
   error?: { stage: string; message: string };
   done?: { ok: boolean; ms: number };
 }
@@ -59,6 +60,8 @@ async function persist(userId: string, req: RunRequest, acc: Accumulator): Promi
     errorCount: counts.error + (acc.error ? 1 : 0),
     warningCount: counts.warning,
     proposalCount: acc.ingest?.proposals.length ?? 0,
+    testsPassed: acc.tests?.passed ?? 0,
+    testsFailed: acc.tests?.failed ?? 0,
     createdAt: new Date().toISOString(),
   };
   // Strip the PAT before anything is written to disk.
@@ -71,6 +74,7 @@ async function persist(userId: string, req: RunRequest, acc: Accumulator): Promi
     ingest: acc.ingest,
     ir: acc.ir,
     surfaces: acc.surfaces,
+    tests: acc.tests,
     error: acc.error,
   };
   try {
@@ -122,6 +126,9 @@ export async function POST(req: NextRequest): Promise<Response> {
             break;
           case 'project':
             acc.surfaces = event.surfaces;
+            break;
+          case 'test':
+            acc.tests = { tests: event.tests, passed: event.passed, failed: event.failed };
             break;
           case 'error':
             acc.error = { stage: String(event.stage), message: event.message };

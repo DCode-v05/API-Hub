@@ -43,5 +43,8 @@ export interface RunMeta {
   errorCount: number;
   warningCount: number;
   proposalCount: number;
+  /** Conversion test cases — counts from the post-project Test stage (optional for older runs). */
+  testsPassed?: number;
+  testsFailed?: number;
   createdAt: string;
 }

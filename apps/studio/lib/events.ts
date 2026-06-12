@@ -1,7 +1,7 @@
 import type { Ir } from '@cn/contracts';
 
-export type StageId = 'acquire' | 'ingest' | 'build' | 'project';
-export const STAGES: StageId[] = ['acquire', 'ingest', 'build', 'project'];
+export type StageId = 'acquire' | 'ingest' | 'build' | 'project' | 'test';
+export const STAGES: StageId[] = ['acquire', 'ingest', 'build', 'project', 'test'];
 
 export interface DiagnosticDTO {
   severity: 'error' | 'warning' | 'note';
@@ -24,6 +24,16 @@ export interface SurfaceDTO {
   files: { path: string; content: string }[];
 }
 
+/** One conversion test case — rendered in the UI with a green tick (pass) or red cross (fail). */
+export interface TestResult {
+  name: string;
+  status: 'pass' | 'fail';
+  /** The measured evidence behind the verdict. */
+  detail: string;
+  /** Grouping label, e.g. "Determinism", "Round-trip", "MCP", "SDK", "Pipeline". */
+  category: string;
+}
+
 /** Events streamed (newline-delimited SSE) from /api/run to the browser as the pipeline runs. */
 export type RunEvent =
   | { t: 'start'; source: { kind: StageSourceKind; describe: string; label: string } }
@@ -43,6 +53,7 @@ export type RunEvent =
   | { t: 'ingest'; ms: number; valid: boolean; diagnostics: DiagnosticDTO[]; proposals: ProposalDTO[] }
   | { t: 'build'; ms: number; ir: Ir }
   | { t: 'project'; ms: number; surfaces: SurfaceDTO[] }
+  | { t: 'test'; ms: number; tests: TestResult[]; passed: number; failed: number }
   | { t: 'error'; stage: StageId | 'input'; message: string }
   | { t: 'done'; ok: boolean; ms: number };
 

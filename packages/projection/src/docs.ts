@@ -3,17 +3,25 @@ import { flagName } from './naming';
 import { pySafeIdent } from './idents';
 import type { PlannedOp, PlannedResource, ProjectionPlan } from './plan';
 
-/** Project the IR into a markdown documentation set. */
+/** Project the IR into an MDX documentation set (frontmatter + Markdown; drops into Docusaurus/Mintlify/Next). */
 export function generateDocs(plan: ProjectionPlan): GeneratedFile[] {
-  const files: GeneratedFile[] = [{ path: 'README.md', content: indexMd(plan) }];
+  const files: GeneratedFile[] = [{ path: 'index.mdx', content: indexMdx(plan) }];
   for (const res of plan.resources) {
-    files.push({ path: `${res.command}.md`, content: resourceMd(plan, res) });
+    files.push({ path: `${res.command}.mdx`, content: resourceMdx(plan, res) });
   }
   return files;
 }
 
-function indexMd(plan: ProjectionPlan): string {
+/** YAML frontmatter block (single-quoted to stay valid for titles with punctuation). */
+function frontmatter(title: string, description: string): string {
+  const esc = (s: string): string => s.replace(/'/g, "''");
+  return `---\ntitle: '${esc(title)}'\ndescription: '${esc(description)}'\n---\n\n`;
+}
+
+function indexMdx(plan: ProjectionPlan): string {
   const lines = [
+    frontmatter(plan.title, `API reference for ${plan.title} (v${plan.apiVersion}).`).trimEnd(),
+    '',
     `# ${plan.title}`,
     '',
     `Version \`${plan.apiVersion}\` · Base URL \`${plan.server || '(none)'}\` · Auth \`${plan.auth}\``,
@@ -24,13 +32,13 @@ function indexMd(plan: ProjectionPlan): string {
     '',
   ];
   for (const res of plan.resources) {
-    lines.push(`- [${res.name}](./${res.command}.md) — ${res.ops.length} operation(s)`);
+    lines.push(`- [${res.name}](./${res.command}) — ${res.ops.length} operation(s)`);
   }
   return lines.join('\n') + '\n';
 }
 
-function resourceMd(plan: ProjectionPlan, res: PlannedResource): string {
-  const lines = [`# ${res.name}`, ''];
+function resourceMdx(plan: ProjectionPlan, res: PlannedResource): string {
+  const lines = [frontmatter(res.name, `${res.name} operations for ${plan.title}.`).trimEnd(), '', `# ${res.name}`, ''];
   for (const op of res.ops) {
     lines.push(`## ${op.methodName}`, '');
     if (op.summary) lines.push(op.summary, '');
