@@ -3,7 +3,7 @@
 import * as React from 'react';
 import { CornerDownLeft, Square } from 'lucide-react';
 import { runCliStream, tokenize, type CliEvent, type CliFile } from '@/lib/cli-client';
-import { fetchPats, notifyPresetsChanged, savePat } from '@/lib/client/api';
+import { fetchPats, savePat } from '@/lib/client/api';
 import type { PatDTO } from '@/lib/records';
 import { cx } from '@/lib/ui';
 
@@ -181,7 +181,6 @@ export function Terminal({
         setPat(null);
         const created = await savePat(name, step.token);
         if (created) {
-          notifyPresetsChanged();
           append({ kind: 'sys', text: `✓ Saved token "${name}".\n` });
           runWith(step.args, { patId: created.id });
         } else {

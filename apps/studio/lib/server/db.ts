@@ -66,6 +66,54 @@ CREATE TABLE IF NOT EXISTS runs (
 );
 CREATE INDEX IF NOT EXISTS runs_user_created_idx ON runs (user_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS runs_user_kind_idx ON runs (user_id, kind, created_at DESC);
+
+-- A Project is a named, version-controlled input source. It supersedes the old single-shot
+-- "preset" concept: the source is re-fetchable and the pipeline re-runs on change, appending a
+-- new project_versions row each time the content hash moves.
+CREATE TABLE IF NOT EXISTS projects (
+  id                  text PRIMARY KEY,
+  user_id             text NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  name                text NOT NULL,
+  kind                text NOT NULL,
+  request             jsonb NOT NULL,
+  pat_id              text,                                   -- saved PAT used to re-acquire github sources
+  watch_enabled       boolean NOT NULL DEFAULT false,
+  watch_interval_sec  integer NOT NULL DEFAULT 900,
+  latest_version      integer NOT NULL DEFAULT 0,
+  latest_ir_hash      text NOT NULL DEFAULT '',
+  latest_content_hash text NOT NULL DEFAULT '',
+  latest_sha          text,
+  last_checked_at     timestamptz,
+  last_status         text NOT NULL DEFAULT 'pending',        -- pending|ok|unchanged|changed|error
+  last_error          text,
+  created_at          timestamptz NOT NULL,
+  updated_at          timestamptz NOT NULL,
+  UNIQUE (user_id, name)
+);
+CREATE INDEX IF NOT EXISTS projects_user_updated_idx ON projects (user_id, updated_at DESC);
+CREATE INDEX IF NOT EXISTS projects_watch_idx ON projects (watch_enabled, last_checked_at);
+
+CREATE TABLE IF NOT EXISTS project_versions (
+  id            text PRIMARY KEY,
+  project_id    text NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+  user_id       text NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  version       integer NOT NULL,
+  ir_hash       text NOT NULL DEFAULT '',
+  content_hash  text NOT NULL DEFAULT '',
+  sha           text,
+  ok            boolean NOT NULL,
+  valid         boolean NOT NULL,
+  op_count      integer NOT NULL DEFAULT 0,
+  file_count    integer NOT NULL DEFAULT 0,
+  error_count   integer NOT NULL DEFAULT 0,
+  warning_count integer NOT NULL DEFAULT 0,
+  summary       jsonb NOT NULL,
+  trigger       text NOT NULL,                                -- initial|manual|watch
+  payload       jsonb NOT NULL,
+  created_at    timestamptz NOT NULL,
+  UNIQUE (project_id, version)
+);
+CREATE INDEX IF NOT EXISTS project_versions_project_idx ON project_versions (project_id, version DESC);
 `;
 
 const globalForPool = globalThis as unknown as { __cnPool?: Pool };

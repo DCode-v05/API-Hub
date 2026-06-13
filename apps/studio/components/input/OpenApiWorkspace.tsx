@@ -134,15 +134,6 @@ export function OpenApiWorkspace() {
       request={toRequest(f)}
       runnable={runnableFor(f)}
       invalidHint="Provide a URL, paste a spec, upload a file, or set a local path."
-      onLoadPreset={(req) =>
-        setF({
-          mode: req.openapiUrl ? 'url' : req.openapiPath ? 'path' : 'paste',
-          url: req.openapiUrl ?? '',
-          content: req.openapiContent ?? '',
-          fileName: '',
-          path: req.openapiPath ?? '',
-        })
-      }
     >
       <div className="space-y-4">
         <div className="flex flex-wrap gap-1.5">

@@ -86,10 +86,6 @@ export function GithubWorkspace() {
       request={toRequest(f)}
       runnable={runnable}
       invalidHint='Enter a repo (owner/repo) and a GitHub token.'
-      onLoadPreset={(req) => {
-        setInspection(null);
-        setF({ githubUrl: '', repo: req.repo ?? '', pat: '', patId: req.patId ?? '', ref: req.ref ?? '', spec: req.spec ?? '' });
-      }}
     >
       <div className="space-y-4">
         <Field label="GitHub URL" hint="optional · auto-fills the fields below">

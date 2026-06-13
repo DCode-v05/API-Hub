@@ -4,11 +4,12 @@ import * as React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Menu, Moon, Sun, Workflow, X } from 'lucide-react';
-import type { PresetRecord, UserDTO } from '@/lib/records';
+import type { ProjectRecord, UserDTO } from '@/lib/records';
 import { cx } from '@/lib/ui';
-import { PRESETS_CHANGED, fetchAllPresets } from '@/lib/client/api';
+import { PROJECTS_CHANGED, fetchProjects } from '@/lib/client/api';
+import { KIND_ICON } from '@/lib/project-display';
 import { Button } from '@/components/ui';
-import { INPUT_ITEMS, NAV, type NavItem } from './nav';
+import { NAV, type NavItem } from './nav';
 import { UserMenu } from './UserMenu';
 
 function ThemeToggle() {
@@ -73,39 +74,40 @@ function NavLinks({ pathname, onNavigate }: { pathname: string; onNavigate?: () 
   );
 }
 
-/** Saved presets, listed below the nav. Clicking one opens that input page and loads the preset. */
-function SidebarPresets({ onNavigate }: { onNavigate?: () => void }) {
-  const [presets, setPresets] = React.useState<PresetRecord[] | null>(null);
+/** Saved projects, listed below the nav. Clicking one opens its detail page. */
+function SidebarProjects({ onNavigate }: { onNavigate?: () => void }) {
+  const [projects, setProjects] = React.useState<ProjectRecord[] | null>(null);
 
   React.useEffect(() => {
     let alive = true;
-    const load = () => fetchAllPresets().then((p) => alive && setPresets(p));
+    const load = () => fetchProjects().then((p) => alive && setProjects(p));
     void load();
     const onChange = () => void load();
-    window.addEventListener(PRESETS_CHANGED, onChange);
+    window.addEventListener(PROJECTS_CHANGED, onChange);
     return () => {
       alive = false;
-      window.removeEventListener(PRESETS_CHANGED, onChange);
+      window.removeEventListener(PROJECTS_CHANGED, onChange);
     };
   }, []);
 
-  if (!presets || presets.length === 0) return null;
+  if (!projects || projects.length === 0) return null;
 
   return (
     <div className="space-y-1">
-      <div className="px-3 pb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Saved presets</div>
-      {presets.map((p) => {
-        const Icon = INPUT_ITEMS.find((i) => i.href === `/${p.kind}`)?.Icon;
+      <div className="px-3 pb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Projects</div>
+      {projects.map((p) => {
+        const Icon = KIND_ICON[p.kind];
         return (
           <Link
             key={p.id}
-            href={`/${p.kind}?preset=${p.id}`}
+            href={`/projects/${p.id}`}
             onClick={onNavigate}
             title={`${p.name} · ${p.kind}`}
             className="group flex items-center gap-2.5 rounded-md px-3 py-1.5 text-[13px] font-medium text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground"
           >
-            {Icon ? <Icon className="h-4 w-4 shrink-0 text-muted-foreground group-hover:text-foreground" /> : null}
+            <Icon className="h-4 w-4 shrink-0 text-muted-foreground group-hover:text-foreground" />
             <span className="truncate">{p.name}</span>
+            {p.watchEnabled ? <span className="ml-auto h-1.5 w-1.5 shrink-0 rounded-full bg-accent" title="Auto-sync on" /> : null}
           </Link>
         );
       })}
@@ -146,7 +148,7 @@ export function AppShell({ user, children }: { user: UserDTO; children: React.Re
         </div>
         <div className="flex-1 space-y-5 overflow-y-auto p-3">
           <NavLinks pathname={pathname} />
-          <SidebarPresets />
+          <SidebarProjects />
         </div>
       </aside>
 
@@ -163,7 +165,7 @@ export function AppShell({ user, children }: { user: UserDTO; children: React.Re
             </div>
             <div className="flex-1 space-y-5 overflow-y-auto p-3">
               <NavLinks pathname={pathname} onNavigate={() => setMobileOpen(false)} />
-              <SidebarPresets onNavigate={() => setMobileOpen(false)} />
+              <SidebarProjects onNavigate={() => setMobileOpen(false)} />
             </div>
           </aside>
         </div>

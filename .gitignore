@@ -17,3 +17,4 @@ __pycache__/
 # studio local data store (users, run history, presets, session secret)
 apps/studio/.data/
 apps/studio/.next/
+apps/studio/.next-verify/
