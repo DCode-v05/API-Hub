@@ -1,5 +1,14 @@
 import type { RunRequest, StageSourceKind } from '../events';
-import type { PatDTO, ProjectRecord, ProjectVersionMeta, RunMeta } from '../records';
+import type {
+  DeploymentRecord,
+  HostConfig,
+  PatDTO,
+  ProjectRecord,
+  ProjectVersionMeta,
+  PublishRecord,
+  RegistryStatus,
+  RunMeta,
+} from '../records';
 
 /** Thin client wrappers over the studio's REST endpoints. All are best-effort and never throw. */
 
@@ -91,6 +100,108 @@ export async function fetchProjectVersion(id: string, version: number): Promise<
     const res = await fetch(`/api/projects/${id}/versions/${version}`, { cache: 'no-store' });
     if (!res.ok) return null;
     return await res.json();
+  } catch {
+    return null;
+  }
+}
+
+/* ── Hosting (MCP server) & publishing (SDKs) ─────────────────────────────── */
+
+export const HOSTS_CHANGED = 'cn:hosts-changed';
+export function notifyHostsChanged(): void {
+  if (typeof window !== 'undefined') window.dispatchEvent(new Event(HOSTS_CHANGED));
+}
+
+export async function fetchHost(projectId: string): Promise<{ deployments: DeploymentRecord[]; config: HostConfig } | null> {
+  try {
+    const res = await fetch(`/api/projects/${projectId}/host`, { cache: 'no-store' });
+    if (!res.ok) return null;
+    return (await res.json()) as { deployments: DeploymentRecord[]; config: HostConfig };
+  } catch {
+    return null;
+  }
+}
+
+export async function startHost(
+  projectId: string,
+  body: { version: number; kind?: 'mcp' | 'cli'; baseUrl?: string; token?: string },
+): Promise<{ deployment: DeploymentRecord | null; error?: string }> {
+  try {
+    const res = await fetch(`/api/projects/${projectId}/host`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    const data = (await res.json().catch(() => ({}))) as { deployment?: DeploymentRecord; error?: string };
+    if (!res.ok) return { deployment: data.deployment ?? null, error: data.error ?? `Request failed (HTTP ${res.status})` };
+    return { deployment: data.deployment ?? null };
+  } catch (e) {
+    return { deployment: null, error: e instanceof Error ? e.message : 'Network error' };
+  }
+}
+
+export async function stopHost(projectId: string, deploymentId: string): Promise<boolean> {
+  try {
+    const res = await fetch(`/api/projects/${projectId}/host/${deploymentId}/stop`, { method: 'POST' });
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
+
+export async function fetchHostLogs(
+  projectId: string,
+  deploymentId: string,
+): Promise<{ status: string; lines: string[]; port: number | null; endpoint: string | null } | null> {
+  try {
+    const res = await fetch(`/api/projects/${projectId}/host/${deploymentId}/logs`, { cache: 'no-store' });
+    if (!res.ok) return null;
+    return (await res.json()) as { status: string; lines: string[]; port: number | null; endpoint: string | null };
+  } catch {
+    return null;
+  }
+}
+
+export async function saveHostConfig(projectId: string, body: { baseUrl: string; token?: string }): Promise<boolean> {
+  try {
+    const res = await fetch(`/api/projects/${projectId}/host/config`, {
+      method: 'PUT',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
+
+export function cliPackUrl(projectId: string, version: number): string {
+  return `/api/projects/${projectId}/host/cli/pack?version=${version}`;
+}
+
+/** Invoke a command on a hosted CLI service (via the studio proxy → the host's POST /run). */
+export async function runCliCommand(
+  projectId: string,
+  deploymentId: string,
+  args: string[],
+): Promise<{ exitCode?: number; stdout?: string; stderr?: string; error?: string }> {
+  try {
+    const res = await fetch(`/api/projects/${projectId}/host/${deploymentId}/run`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ args }),
+    });
+    return (await res.json()) as { exitCode?: number; stdout?: string; stderr?: string; error?: string };
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : 'Network error' };
+  }
+}
+
+export async function fetchPublishState(projectId: string): Promise<{ registry: RegistryStatus; publishes: PublishRecord[] } | null> {
+  try {
+    const res = await fetch(`/api/projects/${projectId}/publish`, { cache: 'no-store' });
+    if (!res.ok) return null;
+    return (await res.json()) as { registry: RegistryStatus; publishes: PublishRecord[] };
   } catch {
     return null;
   }

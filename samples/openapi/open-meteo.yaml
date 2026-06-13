@@ -1,0 +1,40 @@
+openapi: 3.1.0
+info:
+  title: Open-Meteo Weather API
+  version: 1.0.0
+  description: Free weather forecast API — no API key required. A great real, live API to host.
+servers:
+  - url: https://api.open-meteo.com
+paths:
+  /v1/forecast:
+    get:
+      operationId: getForecast
+      summary: Current weather and forecast for a latitude/longitude.
+      parameters:
+        - name: latitude
+          in: query
+          required: true
+          schema: { type: number }
+        - name: longitude
+          in: query
+          required: true
+          schema: { type: number }
+        - name: current_weather
+          in: query
+          required: false
+          schema: { type: boolean }
+        - name: hourly
+          in: query
+          required: false
+          schema: { type: string }
+        - name: timezone
+          in: query
+          required: false
+          schema: { type: string }
+      responses:
+        '200':
+          description: Forecast data (current weather + optional hourly series).
+          content:
+            application/json:
+              schema:
+                type: object

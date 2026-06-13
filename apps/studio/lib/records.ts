@@ -114,3 +114,66 @@ export interface RunMeta {
   testsFailed?: number;
   createdAt: string;
 }
+
+/* ── Hosting & publishing ─────────────────────────────────────────────────── */
+
+export type DeploymentStatus = 'starting' | 'running' | 'stopped' | 'failed';
+
+/** A hosted MCP server (the studio runs the generated http-server.mjs as a local process). */
+export interface DeploymentRecord {
+  id: string;
+  projectId: string;
+  userId: string;
+  version: number;
+  surfaceKind: 'mcp' | 'cli';
+  status: DeploymentStatus;
+  port: number | null;
+  pid: number | null;
+  baseUrl: string | null;
+  error: string | null;
+  /** Convenience for the UI — `http://localhost:<port>/mcp` when running. */
+  endpoint: string | null;
+  startedAt: string | null;
+  stoppedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** The upstream API config for a project's hosted MCP server (token never sent to the client). */
+export interface HostConfig {
+  baseUrl: string;
+  hasToken: boolean;
+}
+
+export type PublishRegistry = 'npm' | 'pypi';
+export type PublishStatus = 'pending' | 'published' | 'failed';
+
+/** A record of an SDK published to npm / PyPI. */
+export interface PublishRecord {
+  id: string;
+  projectId: string;
+  userId: string;
+  version: number;
+  surfaceKind: 'sdk-typescript' | 'sdk-python';
+  registry: PublishRegistry;
+  packageName: string;
+  publishedVersion: string;
+  status: PublishStatus;
+  url: string | null;
+  error: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** Whether the platform-global registry credentials + tooling are configured (for the UI). */
+export interface RegistryStatus {
+  npm: { configured: boolean; scope: string };
+  pypi: { configured: boolean; prefix: string; tooling: boolean };
+}
+
+/** Frames streamed by the publish SSE endpoint: build/publish logs + a final outcome. */
+export type PublishEvent =
+  | { t: 'log'; line: string }
+  | { t: 'step'; name: string }
+  | { t: 'published'; publishedVersion: string; url: string; packageName: string }
+  | { t: 'error'; message: string };

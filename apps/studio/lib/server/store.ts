@@ -1,12 +1,18 @@
 import { createCipheriv, createDecipheriv, createHash, randomBytes } from 'node:crypto';
 import type {
+  DeploymentRecord,
+  DeploymentStatus,
   DiffSummary,
+  HostConfig,
   PatDTO,
   PresetRecord,
   ProjectRecord,
   ProjectStatus,
   ProjectTrigger,
   ProjectVersionMeta,
+  PublishRecord,
+  PublishRegistry,
+  PublishStatus,
   RunMeta,
 } from '../records';
 import type { RunRequest, StageSourceKind } from '../events';
@@ -606,4 +612,273 @@ export async function getRunPayload(userId: string, runId: string): Promise<unkn
 export async function deleteRun(userId: string, runId: string): Promise<boolean> {
   const { rowCount } = await query(`DELETE FROM runs WHERE id = $1 AND user_id = $2`, [runId, userId]);
   return rowCount > 0;
+}
+
+/* ── Deployments (hosted MCP servers) ─────────────────────────────────────── */
+
+interface DeploymentRow {
+  id: string;
+  project_id: string;
+  user_id: string;
+  version: number;
+  surface_kind: string;
+  status: DeploymentStatus;
+  port: number | null;
+  pid: number | null;
+  base_url: string | null;
+  error: string | null;
+  started_at: string | null;
+  stopped_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+function endpointFor(kind: string, port: number | null): string | null {
+  return port != null ? `http://localhost:${port}/${kind === 'cli' ? 'run' : 'mcp'}` : null;
+}
+
+function rowToDeployment(r: DeploymentRow): DeploymentRecord {
+  const surfaceKind = r.surface_kind === 'cli' ? 'cli' : 'mcp';
+  return {
+    id: r.id,
+    projectId: r.project_id,
+    userId: r.user_id,
+    version: r.version,
+    surfaceKind,
+    status: r.status,
+    port: r.port,
+    pid: r.pid,
+    baseUrl: r.base_url,
+    error: r.error,
+    endpoint: endpointFor(surfaceKind, r.port),
+    startedAt: r.started_at ? iso(r.started_at) : null,
+    stoppedAt: r.stopped_at ? iso(r.stopped_at) : null,
+    createdAt: iso(r.created_at),
+    updatedAt: iso(r.updated_at),
+  };
+}
+
+export async function createDeployment(
+  userId: string,
+  input: { projectId: string; version: number; surfaceKind: 'mcp' | 'cli'; port?: number | null; pid?: number | null; baseUrl?: string | null },
+): Promise<DeploymentRecord> {
+  const now = new Date().toISOString();
+  const depId = id();
+  await query(
+    `INSERT INTO deployments (id, project_id, user_id, version, surface_kind, status, port, pid, base_url, started_at, created_at, updated_at)
+     VALUES ($1, $2, $3, $4, $5, 'starting', $6, $7, $8, $9, $9, $9)`,
+    [depId, input.projectId, userId, input.version, input.surfaceKind, input.port ?? null, input.pid ?? null, input.baseUrl ?? null, now],
+  );
+  return {
+    id: depId,
+    projectId: input.projectId,
+    userId,
+    version: input.version,
+    surfaceKind: input.surfaceKind,
+    status: 'starting',
+    port: input.port ?? null,
+    pid: input.pid ?? null,
+    baseUrl: input.baseUrl ?? null,
+    error: null,
+    endpoint: endpointFor(input.surfaceKind, input.port ?? null),
+    startedAt: now,
+    stoppedAt: null,
+    createdAt: now,
+    updatedAt: now,
+  };
+}
+
+export async function updateDeployment(
+  deploymentId: string,
+  patch: { status?: DeploymentStatus; port?: number | null; pid?: number | null; error?: string | null; startedAt?: string | null; stoppedAt?: string | null },
+): Promise<void> {
+  const sets: string[] = [];
+  const vals: unknown[] = [];
+  let i = 1;
+  const add = (col: string, v: unknown): void => {
+    sets.push(`${col} = $${i++}`);
+    vals.push(v);
+  };
+  if (patch.status !== undefined) add('status', patch.status);
+  if (patch.port !== undefined) add('port', patch.port);
+  if (patch.pid !== undefined) add('pid', patch.pid);
+  if (patch.error !== undefined) add('error', patch.error);
+  if (patch.startedAt !== undefined) add('started_at', patch.startedAt);
+  if (patch.stoppedAt !== undefined) add('stopped_at', patch.stoppedAt);
+  add('updated_at', new Date().toISOString());
+  vals.push(deploymentId);
+  await query(`UPDATE deployments SET ${sets.join(', ')} WHERE id = $${i}`, vals);
+}
+
+export async function getDeployment(userId: string, deploymentId: string): Promise<DeploymentRecord | null> {
+  const { rows } = await query<DeploymentRow>(`SELECT * FROM deployments WHERE id = $1 AND user_id = $2`, [deploymentId, userId]);
+  return rows[0] ? rowToDeployment(rows[0]) : null;
+}
+
+export async function listDeployments(userId: string, projectId: string): Promise<DeploymentRecord[]> {
+  const { rows } = await query<DeploymentRow>(
+    `SELECT * FROM deployments WHERE project_id = $1 AND user_id = $2 ORDER BY created_at DESC`,
+    [projectId, userId],
+  );
+  return rows.map(rowToDeployment);
+}
+
+/** All deployments still flagged active — used by the boot reconcile to clean up orphans. */
+export async function listActiveDeployments(): Promise<DeploymentRecord[]> {
+  const { rows } = await query<DeploymentRow>(`SELECT * FROM deployments WHERE status IN ('starting', 'running')`);
+  return rows.map(rowToDeployment);
+}
+
+/* ── Host config (upstream API for the hosted MCP server) ─────────────────── */
+
+interface HostConfigRow {
+  base_url: string;
+  iv: string | null;
+  ct: string | null;
+  tag: string | null;
+}
+
+export async function getHostConfig(userId: string, projectId: string): Promise<HostConfig> {
+  const { rows } = await query<HostConfigRow>(
+    `SELECT base_url, iv, ct, tag FROM project_host_config WHERE project_id = $1 AND user_id = $2`,
+    [projectId, userId],
+  );
+  const r = rows[0];
+  return { baseUrl: r?.base_url ?? '', hasToken: !!r?.ct };
+}
+
+export async function setHostConfig(userId: string, projectId: string, input: { baseUrl: string; token?: string }): Promise<void> {
+  await ensureReady();
+  const now = new Date().toISOString();
+  const token = input.token?.trim();
+  if (token) {
+    const enc = encryptSecret(token);
+    await query(
+      `INSERT INTO project_host_config (project_id, user_id, base_url, iv, ct, tag, updated_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)
+       ON CONFLICT (project_id) DO UPDATE
+         SET base_url = EXCLUDED.base_url, iv = EXCLUDED.iv, ct = EXCLUDED.ct, tag = EXCLUDED.tag, updated_at = EXCLUDED.updated_at`,
+      [projectId, userId, input.baseUrl, enc.iv, enc.ct, enc.tag, now],
+    );
+  } else {
+    // Update the base URL only; keep any previously-stored token.
+    await query(
+      `INSERT INTO project_host_config (project_id, user_id, base_url, updated_at)
+       VALUES ($1, $2, $3, $4)
+       ON CONFLICT (project_id) DO UPDATE SET base_url = EXCLUDED.base_url, updated_at = EXCLUDED.updated_at`,
+      [projectId, userId, input.baseUrl, now],
+    );
+  }
+}
+
+/** Decrypt the stored upstream token. Server-only — never expose to the browser. */
+export async function getHostToken(userId: string, projectId: string): Promise<string | undefined> {
+  const { rows } = await query<HostConfigRow>(
+    `SELECT base_url, iv, ct, tag FROM project_host_config WHERE project_id = $1 AND user_id = $2`,
+    [projectId, userId],
+  );
+  const r = rows[0];
+  if (!r || !r.iv || !r.ct || !r.tag) return undefined;
+  return decryptSecret({ iv: r.iv, ct: r.ct, tag: r.tag });
+}
+
+/* ── Publishes (SDK → npm / PyPI) ─────────────────────────────────────────── */
+
+interface PublishRow {
+  id: string;
+  project_id: string;
+  user_id: string;
+  version: number;
+  surface_kind: 'sdk-typescript' | 'sdk-python';
+  registry: PublishRegistry;
+  package_name: string;
+  published_version: string;
+  status: PublishStatus;
+  url: string | null;
+  error: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+function rowToPublish(r: PublishRow): PublishRecord {
+  return {
+    id: r.id,
+    projectId: r.project_id,
+    userId: r.user_id,
+    version: r.version,
+    surfaceKind: r.surface_kind,
+    registry: r.registry,
+    packageName: r.package_name,
+    publishedVersion: r.published_version,
+    status: r.status,
+    url: r.url,
+    error: r.error,
+    createdAt: iso(r.created_at),
+    updatedAt: iso(r.updated_at),
+  };
+}
+
+export async function createPublish(
+  userId: string,
+  input: { projectId: string; version: number; surfaceKind: 'sdk-typescript' | 'sdk-python'; registry: PublishRegistry; packageName: string; publishedVersion: string },
+): Promise<PublishRecord> {
+  const now = new Date().toISOString();
+  const pubId = id();
+  await query(
+    `INSERT INTO publishes (id, project_id, user_id, version, surface_kind, registry, package_name, published_version, status, created_at, updated_at)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'pending', $9, $9)`,
+    [pubId, input.projectId, userId, input.version, input.surfaceKind, input.registry, input.packageName, input.publishedVersion, now],
+  );
+  return {
+    id: pubId,
+    projectId: input.projectId,
+    userId,
+    version: input.version,
+    surfaceKind: input.surfaceKind,
+    registry: input.registry,
+    packageName: input.packageName,
+    publishedVersion: input.publishedVersion,
+    status: 'pending',
+    url: null,
+    error: null,
+    createdAt: now,
+    updatedAt: now,
+  };
+}
+
+export async function updatePublish(
+  publishId: string,
+  patch: { status?: PublishStatus; publishedVersion?: string; url?: string | null; error?: string | null },
+): Promise<void> {
+  const sets: string[] = [];
+  const vals: unknown[] = [];
+  let i = 1;
+  const add = (col: string, v: unknown): void => {
+    sets.push(`${col} = $${i++}`);
+    vals.push(v);
+  };
+  if (patch.status !== undefined) add('status', patch.status);
+  if (patch.publishedVersion !== undefined) add('published_version', patch.publishedVersion);
+  if (patch.url !== undefined) add('url', patch.url);
+  if (patch.error !== undefined) add('error', patch.error);
+  add('updated_at', new Date().toISOString());
+  vals.push(publishId);
+  await query(`UPDATE publishes SET ${sets.join(', ')} WHERE id = $${i}`, vals);
+}
+
+export async function listPublishes(userId: string, projectId: string): Promise<PublishRecord[]> {
+  const { rows } = await query<PublishRow>(
+    `SELECT * FROM publishes WHERE project_id = $1 AND user_id = $2 ORDER BY created_at DESC`,
+    [projectId, userId],
+  );
+  return rows.map(rowToPublish);
+}
+
+/** The most recently-published version of a package (platform-global), for auto-increment. */
+export async function lastPublishedVersion(packageName: string): Promise<string | null> {
+  const { rows } = await query<{ published_version: string }>(
+    `SELECT published_version FROM publishes WHERE package_name = $1 AND status = 'published' ORDER BY created_at DESC LIMIT 1`,
+    [packageName],
+  );
+  return rows[0]?.published_version ?? null;
 }

@@ -1,5 +1,5 @@
 import type { RunEvent, RunRequest } from './events';
-import type { ProjectSyncEvent } from './records';
+import type { ProjectSyncEvent, PublishEvent } from './records';
 
 /** Parse a server SSE body, calling onEvent for each `data:` frame (accepts LF and CRLF). */
 async function pumpSse<T>(body: ReadableStream<Uint8Array>, onEvent: (e: T) => void): Promise<void> {
@@ -68,4 +68,29 @@ export async function syncProject(
   }
   if (!res.ok || !res.body) throw new Error(`Sync failed (HTTP ${res.status})`);
   await pumpSse<ProjectSyncEvent>(res.body, onEvent);
+}
+
+/** Publish an SDK to its registry, streaming build/publish log frames + a final outcome. */
+export async function publishSdk(
+  projectId: string,
+  version: number,
+  target: 'sdk-typescript' | 'sdk-python',
+  onEvent: (e: PublishEvent) => void,
+  signal?: AbortSignal,
+): Promise<void> {
+  const res = await fetch(`/api/projects/${projectId}/publish`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ version, target }),
+    signal,
+  });
+  if (res.status === 409) {
+    const msg = await res
+      .json()
+      .then((j) => (j as { error?: string }).error)
+      .catch(() => null);
+    throw new Error(msg || 'A publish is already running for this package.');
+  }
+  if (!res.ok || !res.body) throw new Error(`Publish failed (HTTP ${res.status})`);
+  await pumpSse<PublishEvent>(res.body, onEvent);
 }

@@ -235,6 +235,7 @@ const SERVER_NAME = ${JSON.stringify(`${plan.slug}-mcp`)};
 const SERVER_VERSION = ${JSON.stringify(plan.apiVersion)};
 const DEFAULT_BASE_URL = ${JSON.stringify(plan.server)};
 const PORT = Number(process.env.PORT || 8000);
+const HOST = process.env.HOST || '0.0.0.0';
 const TOOLS = ${JSON.stringify(tools, null, 2)};
 
 function buildUrl(base, tmpl, args) {
@@ -281,7 +282,7 @@ const server = createServer((req, res) => {
     res.end(out == null ? '' : JSON.stringify(out));
   });
 });
-server.listen(PORT, () => process.stdout.write(SERVER_NAME + ' MCP (HTTP) on :' + PORT + ' — POST /mcp\\n'));
+server.listen(PORT, HOST, () => process.stdout.write(SERVER_NAME + ' MCP (HTTP) on ' + HOST + ':' + PORT + ' — POST /mcp\\n'));
 `;
 }
 

@@ -114,6 +114,55 @@ CREATE TABLE IF NOT EXISTS project_versions (
   UNIQUE (project_id, version)
 );
 CREATE INDEX IF NOT EXISTS project_versions_project_idx ON project_versions (project_id, version DESC);
+
+-- A hosted MCP server: the studio spawns the generated http-server.mjs as a managed local process.
+CREATE TABLE IF NOT EXISTS deployments (
+  id           text PRIMARY KEY,
+  project_id   text NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+  user_id      text NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  version      integer NOT NULL,
+  surface_kind text NOT NULL,                                  -- 'mcp'
+  status       text NOT NULL DEFAULT 'starting',               -- starting|running|stopped|failed
+  port         integer,
+  pid          integer,
+  base_url     text,
+  error        text,
+  started_at   timestamptz,
+  stopped_at   timestamptz,
+  created_at   timestamptz NOT NULL,
+  updated_at   timestamptz NOT NULL
+);
+CREATE INDEX IF NOT EXISTS deployments_project_idx ON deployments (project_id, created_at DESC);
+
+-- Upstream API config for a project's hosted MCP server (base URL + bearer token, token encrypted).
+CREATE TABLE IF NOT EXISTS project_host_config (
+  project_id text PRIMARY KEY REFERENCES projects(id) ON DELETE CASCADE,
+  user_id    text NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  base_url   text NOT NULL DEFAULT '',
+  iv         text,
+  ct         text,
+  tag        text,
+  updated_at timestamptz NOT NULL
+);
+
+-- A record of an SDK published to a public registry (npm / PyPI). Drives auto-increment + history.
+CREATE TABLE IF NOT EXISTS publishes (
+  id                text PRIMARY KEY,
+  project_id        text NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+  user_id           text NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  version           integer NOT NULL,                          -- platform project version
+  surface_kind      text NOT NULL,                             -- 'sdk-typescript'|'sdk-python'
+  registry          text NOT NULL,                             -- 'npm'|'pypi'
+  package_name      text NOT NULL,
+  published_version text NOT NULL DEFAULT '',                  -- semver actually published
+  status            text NOT NULL DEFAULT 'pending',           -- pending|published|failed
+  url               text,
+  error             text,
+  created_at        timestamptz NOT NULL,
+  updated_at        timestamptz NOT NULL
+);
+CREATE INDEX IF NOT EXISTS publishes_project_idx ON publishes (project_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS publishes_pkg_idx ON publishes (package_name, created_at DESC);
 `;
 
 const globalForPool = globalThis as unknown as { __cnPool?: Pool };

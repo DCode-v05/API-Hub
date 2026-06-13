@@ -21,6 +21,7 @@ import { timeAgo } from '@/lib/time';
 import { cx } from '@/lib/ui';
 import { Badge, Button, Input, Spinner } from '@/components/ui';
 import { RunResults } from '@/components/run/RunResults';
+import { DistributePanel } from './DistributePanel';
 import { ProjectVersionTimeline } from './ProjectVersionTimeline';
 
 type Action = RunEvent | { t: 'reset' };
@@ -45,6 +46,7 @@ export function ProjectDetail({ projectId }: { projectId: string }) {
   const [selected, setSelected] = React.useState<number | null>(null);
   const [payload, setPayload] = React.useState<RunPayload | null>(null);
   const [payloadLoading, setPayloadLoading] = React.useState(false);
+  const [rightTab, setRightTab] = React.useState<'results' | 'distribute'>('results');
 
   const refresh = React.useCallback(async () => {
     const data = await fetchProject(projectId);
@@ -97,6 +99,7 @@ export function ProjectDetail({ projectId }: { projectId: string }) {
     if (syncing) return;
     setSyncing(true);
     setSelected(null); // surrender the right pane to the live funnel
+    setRightTab('results');
     setBanner(null);
     dispatch({ t: 'reset' });
     const ac = new AbortController();
@@ -271,20 +274,47 @@ export function ProjectDetail({ projectId }: { projectId: string }) {
           </div>
         </div>
 
-        <div className="min-w-0 lg:min-h-0 lg:overflow-y-auto">
-          {showLive ? (
-            <RunResults state={runState} />
-          ) : payloadLoading ? (
-            <div className="flex items-center gap-2 rounded-lg border border-border bg-card px-4 py-16 text-sm text-muted-foreground">
-              <Spinner className="h-4 w-4" /> Loading version…
-            </div>
-          ) : payload ? (
-            <RunResults state={payloadToState(payload)} />
-          ) : (
-            <div className="flex h-full min-h-[260px] items-center justify-center rounded-lg border border-dashed border-border px-4 py-16 text-center text-sm text-muted-foreground">
-              {versions.length === 0 ? 'Sync this project to build its first version.' : 'Select a version to replay its IR and surfaces.'}
-            </div>
-          )}
+        <div className="flex min-w-0 flex-col lg:min-h-0">
+          {/* Results | Distribute tabs. Distribute is disabled only while a sync is actively running
+              (or before the first version exists) — not after a finished sync. */}
+          <div className="mb-2 flex shrink-0 gap-1">
+            {(['results', 'distribute'] as const).map((t) => {
+              const disabled = t === 'distribute' && (syncing || project.latestVersion === 0);
+              return (
+                <button
+                  key={t}
+                  type="button"
+                  disabled={disabled}
+                  onClick={() => setRightTab(t)}
+                  title={t === 'distribute' && project.latestVersion === 0 ? 'Sync the project first to create a version' : undefined}
+                  className={cx(
+                    'rounded-md px-3 py-1.5 text-[13px] font-medium capitalize transition-colors disabled:cursor-not-allowed disabled:opacity-40',
+                    rightTab === t && !syncing ? 'bg-foreground text-background' : 'bg-muted text-muted-foreground hover:text-foreground',
+                  )}
+                >
+                  {t === 'distribute' ? 'Distribute' : 'Results'}
+                </button>
+              );
+            })}
+          </div>
+
+          <div className="min-h-0 flex-1 lg:overflow-y-auto">
+            {rightTab === 'distribute' && !syncing ? (
+              <DistributePanel projectId={projectId} version={selected ?? project.latestVersion} />
+            ) : showLive ? (
+              <RunResults state={runState} />
+            ) : payloadLoading ? (
+              <div className="flex items-center gap-2 rounded-lg border border-border bg-card px-4 py-16 text-sm text-muted-foreground">
+                <Spinner className="h-4 w-4" /> Loading version…
+              </div>
+            ) : payload ? (
+              <RunResults state={payloadToState(payload)} />
+            ) : (
+              <div className="flex h-full min-h-[260px] items-center justify-center rounded-lg border border-dashed border-border px-4 py-16 text-center text-sm text-muted-foreground">
+                {versions.length === 0 ? 'Sync this project to build its first version.' : 'Select a version to replay its IR and surfaces.'}
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>

@@ -95,8 +95,8 @@ describe('project (lumen)', () => {
 
   it('docs include an index and a per-resource page', async () => {
     const { surfaces } = project(await lumenIr());
-    expect(fileOf(surfaces, 'docs', 'README.md')).toContain('# Lumen API');
-    expect(fileOf(surfaces, 'docs', 'projects.md')).toContain('## create');
+    expect(fileOf(surfaces, 'docs', 'index.mdx')).toContain('# Lumen API');
+    expect(fileOf(surfaces, 'docs', 'projects.mdx')).toContain('## create');
   });
 
   it('is deterministic — same IR ⇒ byte-identical surfaces', async () => {

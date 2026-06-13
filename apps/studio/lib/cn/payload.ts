@@ -44,6 +44,8 @@ export function buildRunPayload(input: BuildPayloadInput): { meta: RunMeta; payl
     errorCount: counts.error + (result.error ? 1 : 0),
     warningCount: counts.warning,
     proposalCount: result.ingest?.proposals.length ?? 0,
+    testsPassed: result.tests?.passed ?? 0,
+    testsFailed: result.tests?.failed ?? 0,
     createdAt: input.createdAt ?? new Date().toISOString(),
   };
   // Defensive: the PAT is already stripped upstream, but never let one slip into a stored payload.
@@ -56,6 +58,7 @@ export function buildRunPayload(input: BuildPayloadInput): { meta: RunMeta; payl
     ingest: result.ingest,
     ir: result.ir,
     surfaces: result.surfaces,
+    tests: result.tests,
     error: result.error,
   };
   return { meta, payload };

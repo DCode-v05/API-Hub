@@ -18,3 +18,5 @@ __pycache__/
 apps/studio/.data/
 apps/studio/.next/
 apps/studio/.next-verify/
+# studio-managed hosted MCP servers (written + spawned per deployment)
+apps/studio/.hosts/

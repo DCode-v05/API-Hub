@@ -21,7 +21,7 @@ describe('cn run (all-in-one)', () => {
     expect(existsSync(join(out, 'surfaces', 'sdk', 'python'))).toBe(true);
     expect(existsSync(join(out, 'surfaces', 'mcp', 'server.mjs'))).toBe(true);
     expect(existsSync(join(out, 'surfaces', 'cli', 'cli.mjs'))).toBe(true);
-    expect(existsSync(join(out, 'surfaces', 'docs', 'README.md'))).toBe(true);
+    expect(existsSync(join(out, 'surfaces', 'docs', 'index.mdx'))).toBe(true);
     rmSync(out, { recursive: true, force: true });
   });
 
