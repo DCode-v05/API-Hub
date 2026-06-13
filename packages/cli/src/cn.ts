@@ -1,6 +1,6 @@
 import { existsSync, readFileSync, statSync } from 'node:fs';
 import { chmod, mkdir, writeFile } from 'node:fs/promises';
-import { dirname, join, resolve } from 'node:path';
+import { dirname, join, relative, resolve } from 'node:path';
 import { parseArgs } from 'node:util';
 import { AcquireService, describeSource } from '@cn/acquire';
 import type {
@@ -14,11 +14,15 @@ import type {
 } from '@cn/acquire';
 import { ingestOne } from '@cn/ingest';
 import type { ValidatedArtifact } from '@cn/ingest';
-import { buildIr } from '@cn/ir-core';
+import { buildIr, IR_VERSION } from '@cn/ir-core';
 import type { Ir } from '@cn/ir-core';
 import { project } from '@cn/projection';
 import type { Diagnostic, Projection, SurfaceKind } from '@cn/contracts';
 import { countBySeverity, hasErrors } from '@cn/contracts';
+import {
+  compareEntry, projectionSig, readLock, sigEqual, shortHash, writeLock, LOCK_VERSION,
+  type LockEntry, type LockFile,
+} from './lock';
 
 const SURFACE_KINDS: SurfaceKind[] = ['sdk-typescript', 'sdk-python', 'mcp', 'cli', 'docs'];
 
@@ -45,6 +49,8 @@ export async function runCli(argv: string[]): Promise<number> {
       return runStage(argv.slice(1), 'build');
     case 'project':
       return runStage(argv.slice(1), 'project');
+    case 'verify':
+      return runVerify(argv.slice(1));
     default:
       process.stderr.write(`cn: unknown command "${command}"\n\n`);
       printHelp();
@@ -52,7 +58,7 @@ export async function runCli(argv: string[]): Promise<number> {
   }
 }
 
-type Stage = 'run' | 'acquire' | 'ingest' | 'build' | 'project';
+type Stage = 'run' | 'acquire' | 'ingest' | 'build' | 'project' | 'verify';
 
 const INPUT_OPTIONS = {
   github: { type: 'string', multiple: true },
@@ -68,6 +74,9 @@ const INPUT_OPTIONS = {
   only: { type: 'string' },
   ir: { type: 'boolean' },
   quiet: { type: 'boolean' },
+  update: { type: 'boolean' },
+  k: { type: 'string' },
+  lock: { type: 'string' },
   help: { type: 'boolean', short: 'h' },
 } as const;
 
@@ -241,6 +250,146 @@ async function writeSurfaces(projection: Projection, outDir: string): Promise<vo
       }
     }
   }
+}
+
+/**
+ * `cn verify` — the determinism gate. For each input it rebuilds the IR + surfaces K times and:
+ *   1) asserts all K rebuilds are byte-identical (Pass^k reproducibility), then
+ *   2) compares against cn.lock (the committed golden) — failing on any drift.
+ * `--update` (re)writes the lock from the current output. Designed to run green in CI.
+ */
+async function runVerify(args: string[]): Promise<number> {
+  const parsed = parseInput(args, 'verify');
+  if (parsed.kind !== 'run') return parsed.kind === 'help' ? 0 : parsed.code;
+  const { values, only, quiet } = parsed.input;
+  const ctx = makeContext(quiet);
+
+  const update = values['update'] === true;
+  const kRaw = typeof values['k'] === 'string' ? Number.parseInt(values['k'], 10) : NaN;
+  const K = Number.isFinite(kRaw) && kRaw >= 2 ? kRaw : 3;
+  const lockPath = resolve(process.cwd(), typeof values['lock'] === 'string' ? values['lock'] : 'cn.lock');
+  const rel = (p: string): string => relative(process.cwd(), p) || p;
+
+  // Inputs from flags, else from cn.config.json (like `cn run`).
+  let sources: SourceRef[];
+  let useOnly = only;
+  if (hasInputFlags(values)) {
+    const built = buildSources(values);
+    if ('error' in built) { process.stderr.write(`cn verify: ${built.error}\n`); return 2; }
+    sources = built.sources;
+  } else {
+    const cfg = loadInputConfig();
+    if (cfg === null) {
+      process.stderr.write(`cn verify: no input. Pass --github/--openapi/--sdk/--mcp, or add ${CONFIG_FILE}.\n`);
+      return 2;
+    }
+    if ('error' in cfg) { process.stderr.write(`cn verify: ${cfg.error}\n`); return 2; }
+    sources = cfg.sources;
+    useOnly = only ?? cfg.only;
+  }
+  if (sources.length === 0) { process.stderr.write('cn verify: no inputs.\n'); return 2; }
+
+  const existing = readLock(lockPath);
+  if (!existing && !update) {
+    process.stderr.write(`cn verify: no lock at ${rel(lockPath)} — create it first:\n  cn verify <inputs> --update\n`);
+    return 1;
+  }
+
+  process.stderr.write(`cn verify — ${sources.length} input(s), Pass^${K}${update ? ' (updating lock)' : ` vs ${rel(lockPath)}`}\n`);
+  const service = new AcquireService();
+  const used = new Set<string>();
+  const newEntries: Record<string, LockEntry> = {};
+  let failures = 0;
+  let drift = 0;
+
+  for (const source of sources) {
+    let label = labelFor(source);
+    if (used.has(label)) { let n = 2; while (used.has(`${label}-${n}`)) n += 1; label = `${label}-${n}`; }
+    used.add(label);
+
+    let artifact: CanonicalArtifact;
+    try {
+      artifact = await service.acquire(source, ctx);
+    } catch (e) {
+      process.stderr.write(`  ✗ ${label}: acquire failed — ${errMessage(e)}\n`);
+      failures += 1; continue;
+    }
+    const validated = ingestOne(artifact);
+    if (!validated.valid) {
+      process.stderr.write(`  ✗ ${label}: validation failed — cannot verify an invalid spec\n`);
+      failures += 1; continue;
+    }
+
+    // Rebuild the deterministic core (IR + surfaces) K times.
+    const irHashes: string[] = [];
+    const sigs: Record<string, string>[] = [];
+    let opCount = 0;
+    for (let i = 0; i < K; i += 1) {
+      const ir = buildIr(validated);
+      opCount = ir.operations.length;
+      irHashes.push(ir.hash);
+      sigs.push(projectionSig(project(ir, useOnly ? { only: useOnly } : {})));
+    }
+    const irStable = irHashes.every((h) => h === irHashes[0]);
+    const sigStable = sigs.every((s) => sigEqual(s, sigs[0]!));
+    const entry: LockEntry = { irHash: irHashes[0]!, surfaces: sigs[0]! };
+    const fileCount = Object.keys(entry.surfaces).length;
+
+    if (!irStable || !sigStable) {
+      process.stderr.write(`  ✗ ${label}: NON-DETERMINISTIC — ${K} rebuilds differ\n`);
+      for (const f of driftingFiles(sigs)) process.stderr.write(`      unstable: ${f}\n`);
+      failures += 1; continue;
+    }
+
+    if (update) {
+      newEntries[label] = entry;
+      process.stderr.write(`  · ${label}: locked — ${opCount} ops, ${fileCount} files, ${shortHash(entry.irHash)}\n`);
+      continue;
+    }
+
+    const expected = existing!.entries[label];
+    if (!expected) {
+      process.stderr.write(`  ✗ ${label}: not in lock (new) — run --update to record it\n`);
+      drift += 1; continue;
+    }
+    const diffs = compareEntry(expected, entry);
+    if (diffs.length === 0) {
+      process.stderr.write(`  ✓ ${label}: matches lock · Pass^${K} · ${fileCount} files\n`);
+    } else {
+      process.stderr.write(`  ✗ ${label}: DRIFT from lock — ${diffs.length} change(s)\n`);
+      for (const d of diffs.slice(0, 12)) process.stderr.write(`      ${d}\n`);
+      if (diffs.length > 12) process.stderr.write(`      … and ${diffs.length - 12} more\n`);
+      drift += 1;
+    }
+  }
+
+  if (update) {
+    const merged: LockFile = existing ?? { lockVersion: LOCK_VERSION, generator: `${IR_VERSION} + projection`, entries: {} };
+    merged.lockVersion = LOCK_VERSION;
+    merged.generator = `${IR_VERSION} + projection`;
+    merged.entries = { ...merged.entries, ...newEntries };
+    writeLock(lockPath, merged);
+    process.stderr.write(`\n${failures ? '✗' : '✓'} wrote ${Object.keys(newEntries).length} entr${Object.keys(newEntries).length === 1 ? 'y' : 'ies'} → ${rel(lockPath)} (${Object.keys(merged.entries).length} total)\n`);
+    return failures > 0 ? 1 : 0;
+  }
+
+  const total = used.size;
+  if (failures === 0 && drift === 0) {
+    process.stderr.write(`\n✓ verify passed — ${total} input(s), Pass^${K}, all match ${rel(lockPath)}\n`);
+    return 0;
+  }
+  process.stderr.write(`\n✗ verify FAILED — ${failures} error(s), ${drift} drift of ${total} input(s)\n`);
+  return 1;
+}
+
+/** Files whose hash isn't constant across the K rebuilds (for non-determinism diagnostics). */
+function driftingFiles(sigs: Record<string, string>[]): string[] {
+  const out: string[] = [];
+  const base = sigs[0] ?? {};
+  for (const file of Object.keys(base)) {
+    if (sigs.some((s) => s[file] !== base[file])) out.push(file);
+  }
+  return out.slice(0, 12);
 }
 
 function reportProjection(projection: Projection, outDir: string): void {
@@ -670,6 +819,8 @@ COMMANDS
   ingest     Acquire, then Adapt → Assemble → Validate + Repair → a validated artifact.
   build      Acquire + ingest, then build the normalized, content-hashed IR (fails loud if invalid).
   project    Build the IR, then render it into surfaces (SDK · MCP · CLI · docs) under ./surfaces.
+  verify     Determinism gate: rebuild IR + surfaces K× (must be byte-identical) and check against
+             cn.lock. --update writes the lock. Exit 1 on drift — wire it into CI.
 
 Every command takes the same input (choose one): --github | --openapi | --sdk | --mcp.
 Run "cn <command> --help" for the full input/option list.
@@ -686,7 +837,9 @@ function printStageHelp(stage: Stage): void {
           ? 'Outputs a validated artifact (adapted, assembled, linted) + repair proposals.'
           : stage === 'build'
             ? 'Outputs the content-hashed IR (only if validation passes).'
-            : 'Renders the IR into surfaces (SDK · MCP · CLI · docs); writes a tree under ./surfaces.';
+            : stage === 'verify'
+              ? 'Rebuilds IR + surfaces K× (must be identical) and checks them against cn.lock; --update writes it.'
+              : 'Renders the IR into surfaces (SDK · MCP · CLI · docs); writes a tree under ./surfaces.';
   const outputHelp =
     stage === 'run'
       ? '  -o, --out <dir>           Output directory for all artifacts + surfaces (default: ./out).\n' +
@@ -695,7 +848,12 @@ function printStageHelp(stage: Stage): void {
       : stage === 'project'
         ? '  -o, --out <dir>           Surfaces root directory (default: ./surfaces).\n' +
           `  --only <kinds>            Comma list of surfaces to emit (${SURFACE_KINDS.join(', ')}).\n`
-        : '  -o, --out <file|dir>      Write JSON to a file/dir (default: stdout).\n';
+        : stage === 'verify'
+          ? '  --update                  Write/refresh cn.lock from the current output.\n' +
+            '  --lock <path>             Lock file path (default: ./cn.lock).\n' +
+            '  -k <n>                    Rebuild count for the Pass^k check (default: 3).\n' +
+            `  --only <kinds>            Restrict surfaces to lock/check (${SURFACE_KINDS.join(', ')}).\n`
+          : '  -o, --out <file|dir>      Write JSON to a file/dir (default: stdout).\n';
   process.stdout.write(`cn ${stage} — ${tail}
 
 INPUTS (${stage === 'run' ? 'one or more — flags are repeatable' : 'choose exactly one'})
