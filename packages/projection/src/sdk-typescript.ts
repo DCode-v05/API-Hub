@@ -176,6 +176,10 @@ const HTTP_TS = `// ${DO_NOT_EDIT}
 export interface ClientOptions {
   baseUrl?: string;
   token?: string;
+  /** Per-request timeout in milliseconds (default 30000). */
+  timeoutMs?: number;
+  /** Retries on transient failures — 429/502/503/504 and network/timeout — with exponential backoff (default 2). */
+  maxRetries?: number;
 }
 
 export interface RequestArgs {
@@ -186,13 +190,19 @@ export interface RequestArgs {
   headers?: Record<string, string>;
 }
 
+const RETRY_STATUS = new Set([429, 502, 503, 504]);
+
 export class HttpClient {
   private readonly baseUrl: string;
   private readonly token: string | undefined;
+  private readonly timeoutMs: number;
+  private readonly maxRetries: number;
 
-  constructor(opts: { baseUrl: string; token?: string }) {
+  constructor(opts: ClientOptions & { baseUrl: string }) {
     this.baseUrl = opts.baseUrl;
     this.token = opts.token;
+    this.timeoutMs = opts.timeoutMs ?? 30000;
+    this.maxRetries = opts.maxRetries ?? 2;
   }
 
   async request<T>(args: RequestArgs): Promise<T> {
@@ -205,14 +215,40 @@ export class HttpClient {
     }
     const headers: Record<string, string> = { 'content-type': 'application/json', ...(args.headers ?? {}) };
     if (this.token) headers['authorization'] = \`Bearer \${this.token}\`;
-    const res = await fetch(url, {
-      method: args.method,
-      headers,
-      body: args.body !== undefined ? JSON.stringify(args.body) : undefined,
-    });
-    if (!res.ok) throw new Error(\`HTTP \${res.status} \${res.statusText}: \${await res.text()}\`);
-    const text = await res.text();
-    return (text ? JSON.parse(text) : undefined) as T;
+    const body = args.body !== undefined ? JSON.stringify(args.body) : undefined;
+
+    for (let attempt = 0; ; attempt++) {
+      const ctrl = new AbortController();
+      const timer = setTimeout(() => ctrl.abort(), this.timeoutMs);
+      try {
+        const res = await fetch(url, { method: args.method, headers, body, signal: ctrl.signal });
+        if (!res.ok) {
+          if (RETRY_STATUS.has(res.status) && attempt < this.maxRetries) {
+            await this.backoff(attempt, res.headers.get('retry-after'));
+            continue;
+          }
+          throw new Error(\`HTTP \${res.status} \${res.statusText}: \${await res.text()}\`);
+        }
+        const text = await res.text();
+        return (text ? JSON.parse(text) : undefined) as T;
+      } catch (err) {
+        const transient = err instanceof Error && (err.name === 'AbortError' || err.name === 'TypeError');
+        if (transient && attempt < this.maxRetries) {
+          await this.backoff(attempt, null);
+          continue;
+        }
+        throw err;
+      } finally {
+        clearTimeout(timer);
+      }
+    }
+  }
+
+  private async backoff(attempt: number, retryAfter: string | null): Promise<void> {
+    let ms = retryAfter ? Number(retryAfter) * 1000 : 0;
+    if (!ms || Number.isNaN(ms)) ms = Math.min(1000 * 2 ** attempt, 8000);
+    ms += Math.floor(Math.random() * 250);
+    await new Promise((r) => setTimeout(r, ms));
   }
 }
 `;
