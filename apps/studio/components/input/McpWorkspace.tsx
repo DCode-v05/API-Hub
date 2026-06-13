@@ -77,15 +77,6 @@ export function McpWorkspace() {
       request={toRequest(f)}
       runnable={runnableFor(f)}
       invalidHint="Provide a manifest (file / URL / paste) or a stdio command."
-      onLoadPreset={(req) =>
-        setF({
-          mode: req.mcpCommand ? 'command' : req.mcpUrl ? 'url' : req.mcpContent ? 'paste' : 'path',
-          url: req.mcpUrl ?? '',
-          content: req.mcpContent ?? '',
-          path: req.mcpPath ?? '',
-          command: req.mcpCommand ?? '',
-        })
-      }
     >
       <div className="space-y-4">
         <div className="flex flex-wrap gap-1.5">

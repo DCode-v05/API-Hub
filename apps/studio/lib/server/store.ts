@@ -1,7 +1,16 @@
 import { createCipheriv, createDecipheriv, createHash, randomBytes } from 'node:crypto';
-import type { PatDTO, PresetRecord, RunMeta } from '../records';
+import type {
+  DiffSummary,
+  PatDTO,
+  PresetRecord,
+  ProjectRecord,
+  ProjectStatus,
+  ProjectTrigger,
+  ProjectVersionMeta,
+  RunMeta,
+} from '../records';
 import type { RunRequest, StageSourceKind } from '../events';
-import { ensureReady, getSecret, query } from './db';
+import { ensureReady, getPool, getSecret, query } from './db';
 
 /**
  * The data store, backed by PostgreSQL (see ./db.ts). These are the only entry points the rest of
@@ -156,6 +165,319 @@ export async function listPresets(userId: string, kind?: StageSourceKind): Promi
 export async function deletePreset(userId: string, presetId: string): Promise<boolean> {
   const { rowCount } = await query(`DELETE FROM presets WHERE id = $1 AND user_id = $2`, [presetId, userId]);
   return rowCount > 0;
+}
+
+/* ── Projects (version-controlled inputs) ─────────────────────────────────── */
+
+const PROJECT_VERSION_CAP = 25; // keep the newest N versions per project (each carries a full payload)
+
+function clampInterval(sec: number | undefined): number {
+  const n = Math.floor(Number(sec));
+  if (!Number.isFinite(n) || n <= 0) return 900;
+  return Math.max(60, n); // never poll faster than once a minute
+}
+
+function isUniqueViolation(e: unknown): boolean {
+  return typeof e === 'object' && e !== null && (e as { code?: string }).code === '23505';
+}
+
+interface ProjectRow {
+  id: string;
+  user_id: string;
+  name: string;
+  kind: StageSourceKind;
+  request: RunRequest;
+  pat_id: string | null;
+  watch_enabled: boolean;
+  watch_interval_sec: number;
+  latest_version: number;
+  latest_ir_hash: string;
+  latest_content_hash: string;
+  latest_sha: string | null;
+  last_checked_at: string | null;
+  last_status: ProjectStatus;
+  last_error: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+function rowToProject(r: ProjectRow): ProjectRecord {
+  return {
+    id: r.id,
+    userId: r.user_id,
+    name: r.name,
+    kind: r.kind,
+    request: r.request,
+    patId: r.pat_id,
+    watchEnabled: r.watch_enabled,
+    watchIntervalSec: r.watch_interval_sec,
+    latestVersion: r.latest_version,
+    latestIrHash: r.latest_ir_hash,
+    latestContentHash: r.latest_content_hash,
+    latestSha: r.latest_sha,
+    lastCheckedAt: r.last_checked_at ? iso(r.last_checked_at) : null,
+    lastStatus: r.last_status,
+    lastError: r.last_error,
+    createdAt: iso(r.created_at),
+    updatedAt: iso(r.updated_at),
+  };
+}
+
+export interface CreateProjectInput {
+  name: string;
+  kind: StageSourceKind;
+  request: RunRequest;
+  patId?: string | null;
+  watchEnabled?: boolean;
+  watchIntervalSec?: number;
+}
+
+export async function createProject(userId: string, input: CreateProjectInput): Promise<ProjectRecord> {
+  const now = new Date().toISOString();
+  const rec: ProjectRecord = {
+    id: id(),
+    userId,
+    name: input.name.trim(),
+    kind: input.kind,
+    request: sanitizeRequest(input.request),
+    patId: input.patId ?? null,
+    watchEnabled: input.watchEnabled ?? false,
+    watchIntervalSec: clampInterval(input.watchIntervalSec),
+    latestVersion: 0,
+    latestIrHash: '',
+    latestContentHash: '',
+    latestSha: null,
+    lastCheckedAt: null,
+    lastStatus: 'pending',
+    lastError: null,
+    createdAt: now,
+    updatedAt: now,
+  };
+  try {
+    await query(
+      `INSERT INTO projects (id, user_id, name, kind, request, pat_id, watch_enabled, watch_interval_sec,
+                             latest_version, latest_ir_hash, latest_content_hash, latest_sha,
+                             last_checked_at, last_status, last_error, created_at, updated_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 0, '', '', NULL, NULL, 'pending', NULL, $9, $10)`,
+      [rec.id, userId, rec.name, rec.kind, JSON.stringify(rec.request), rec.patId, rec.watchEnabled, rec.watchIntervalSec, now, now],
+    );
+  } catch (e) {
+    if (isUniqueViolation(e)) throw new Error('A project with that name already exists.');
+    throw e;
+  }
+  return rec;
+}
+
+export async function listProjects(userId: string): Promise<ProjectRecord[]> {
+  const { rows } = await query<ProjectRow>(`SELECT * FROM projects WHERE user_id = $1 ORDER BY updated_at DESC`, [userId]);
+  return rows.map(rowToProject);
+}
+
+export async function getProject(userId: string, projectId: string): Promise<ProjectRecord | null> {
+  const { rows } = await query<ProjectRow>(`SELECT * FROM projects WHERE id = $1 AND user_id = $2`, [projectId, userId]);
+  return rows[0] ? rowToProject(rows[0]) : null;
+}
+
+export interface UpdateProjectInput {
+  name?: string;
+  watchEnabled?: boolean;
+  watchIntervalSec?: number;
+}
+
+export async function updateProject(userId: string, projectId: string, patch: UpdateProjectInput): Promise<ProjectRecord | null> {
+  const sets: string[] = [];
+  const vals: unknown[] = [];
+  let i = 1;
+  if (patch.name !== undefined) {
+    sets.push(`name = $${i++}`);
+    vals.push(patch.name.trim());
+  }
+  if (patch.watchEnabled !== undefined) {
+    sets.push(`watch_enabled = $${i++}`);
+    vals.push(patch.watchEnabled);
+  }
+  if (patch.watchIntervalSec !== undefined) {
+    sets.push(`watch_interval_sec = $${i++}`);
+    vals.push(clampInterval(patch.watchIntervalSec));
+  }
+  sets.push(`updated_at = $${i++}`);
+  vals.push(new Date().toISOString());
+  const pIdx = i++;
+  const uIdx = i++;
+  vals.push(projectId, userId);
+  try {
+    const { rows } = await query<ProjectRow>(
+      `UPDATE projects SET ${sets.join(', ')} WHERE id = $${pIdx} AND user_id = $${uIdx} RETURNING *`,
+      vals,
+    );
+    return rows[0] ? rowToProject(rows[0]) : null;
+  } catch (e) {
+    if (isUniqueViolation(e)) throw new Error('A project with that name already exists.');
+    throw e;
+  }
+}
+
+export async function deleteProject(userId: string, projectId: string): Promise<boolean> {
+  const { rowCount } = await query(`DELETE FROM projects WHERE id = $1 AND user_id = $2`, [projectId, userId]);
+  return rowCount > 0;
+}
+
+/** Watched projects whose interval has elapsed (or never checked). Server-internal — not user-scoped. */
+export async function listDueWatchedProjects(limit = 20): Promise<ProjectRecord[]> {
+  const { rows } = await query<ProjectRow>(
+    `SELECT * FROM projects
+      WHERE watch_enabled = true
+        AND (last_checked_at IS NULL OR last_checked_at < now() - (watch_interval_sec * interval '1 second'))
+      ORDER BY last_checked_at ASC NULLS FIRST
+      LIMIT $1`,
+    [limit],
+  );
+  return rows.map(rowToProject);
+}
+
+/* ── Project versions ─────────────────────────────────────────────────────── */
+
+interface ProjectVersionRow {
+  id: string;
+  project_id: string;
+  version: number;
+  ir_hash: string;
+  content_hash: string;
+  sha: string | null;
+  ok: boolean;
+  valid: boolean;
+  op_count: number;
+  file_count: number;
+  error_count: number;
+  warning_count: number;
+  trigger: ProjectTrigger;
+  summary: DiffSummary;
+  created_at: string;
+}
+
+function rowToProjectVersionMeta(r: ProjectVersionRow): ProjectVersionMeta {
+  return {
+    id: r.id,
+    projectId: r.project_id,
+    version: r.version,
+    irHash: r.ir_hash,
+    contentHash: r.content_hash,
+    sha: r.sha,
+    ok: r.ok,
+    valid: r.valid,
+    opCount: r.op_count,
+    fileCount: r.file_count,
+    errorCount: r.error_count,
+    warningCount: r.warning_count,
+    trigger: r.trigger,
+    summary: r.summary,
+    createdAt: iso(r.created_at),
+  };
+}
+
+export async function listProjectVersions(userId: string, projectId: string): Promise<ProjectVersionMeta[]> {
+  const { rows } = await query<ProjectVersionRow>(
+    `SELECT id, project_id, version, ir_hash, content_hash, sha, ok, valid, op_count, file_count,
+            error_count, warning_count, trigger, summary, created_at
+       FROM project_versions
+      WHERE project_id = $1 AND user_id = $2
+      ORDER BY version DESC`,
+    [projectId, userId],
+  );
+  return rows.map(rowToProjectVersionMeta);
+}
+
+export async function getProjectVersionPayload(userId: string, projectId: string, version: number): Promise<unknown | null> {
+  const { rows } = await query<{ payload: unknown }>(
+    `SELECT payload FROM project_versions WHERE project_id = $1 AND user_id = $2 AND version = $3`,
+    [projectId, userId, version],
+  );
+  return rows[0] ? rows[0].payload : null;
+}
+
+export interface AppendVersionInput {
+  version: number;
+  irHash: string;
+  contentHash: string;
+  sha: string | null;
+  ok: boolean;
+  valid: boolean;
+  opCount: number;
+  fileCount: number;
+  errorCount: number;
+  warningCount: number;
+  summary: DiffSummary;
+  trigger: ProjectTrigger;
+  payload: unknown;
+}
+
+/** Insert a new version and advance the project's pointers, atomically; then trim to the cap. */
+export async function appendProjectVersion(userId: string, projectId: string, v: AppendVersionInput): Promise<ProjectVersionMeta> {
+  await ensureReady();
+  const now = new Date().toISOString();
+  const versionId = id();
+  const client = await getPool().connect();
+  try {
+    await client.query('BEGIN');
+    await client.query(
+      `INSERT INTO project_versions (id, project_id, user_id, version, ir_hash, content_hash, sha, ok, valid,
+                                     op_count, file_count, error_count, warning_count, summary, trigger, payload, created_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)`,
+      [
+        versionId, projectId, userId, v.version, v.irHash, v.contentHash, v.sha, v.ok, v.valid,
+        v.opCount, v.fileCount, v.errorCount, v.warningCount, JSON.stringify(v.summary), v.trigger, JSON.stringify(v.payload), now,
+      ],
+    );
+    await client.query(
+      `UPDATE projects
+          SET latest_version = $1, latest_ir_hash = $2, latest_content_hash = $3, latest_sha = $4,
+              last_checked_at = $5, last_status = 'changed', last_error = NULL, updated_at = $5
+        WHERE id = $6 AND user_id = $7`,
+      [v.version, v.irHash, v.contentHash, v.sha, now, projectId, userId],
+    );
+    await client.query(
+      `DELETE FROM project_versions WHERE project_id = $1
+         AND id NOT IN (SELECT id FROM project_versions WHERE project_id = $1 ORDER BY version DESC LIMIT $2)`,
+      [projectId, PROJECT_VERSION_CAP],
+    );
+    await client.query('COMMIT');
+  } catch (e) {
+    await client.query('ROLLBACK').catch(() => {});
+    throw e;
+  } finally {
+    client.release();
+  }
+  return {
+    id: versionId,
+    projectId,
+    version: v.version,
+    irHash: v.irHash,
+    contentHash: v.contentHash,
+    sha: v.sha,
+    ok: v.ok,
+    valid: v.valid,
+    opCount: v.opCount,
+    fileCount: v.fileCount,
+    errorCount: v.errorCount,
+    warningCount: v.warningCount,
+    trigger: v.trigger,
+    summary: v.summary,
+    createdAt: now,
+  };
+}
+
+/** Record the outcome of a check that produced no new version (unchanged / error). */
+export async function updateProjectCheck(
+  userId: string,
+  projectId: string,
+  patch: { lastStatus: ProjectStatus; lastError?: string | null; lastCheckedAt?: string },
+): Promise<void> {
+  const now = patch.lastCheckedAt ?? new Date().toISOString();
+  await query(
+    `UPDATE projects SET last_status = $1, last_error = $2, last_checked_at = $3, updated_at = $3
+       WHERE id = $4 AND user_id = $5`,
+    [patch.lastStatus, patch.lastError ?? null, now, projectId, userId],
+  );
 }
 
 /* ── PAT vault ────────────────────────────────────────────────────────────── */

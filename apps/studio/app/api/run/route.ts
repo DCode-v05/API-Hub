@@ -1,18 +1,23 @@
-import { randomUUID } from 'node:crypto';
 import type { NextRequest } from 'next/server';
-import { runPipeline } from '@/lib/cn/runner';
+import { buildRunPayload } from '@/lib/cn/payload';
+import { executePipeline } from '@/lib/cn/pipeline';
 import { buildSourceFromRequest } from '@/lib/cn/sources';
+<<<<<<< HEAD
+import type { RunEvent, RunRequest } from '@/lib/events';
+=======
 import type { DiagnosticDTO, ProposalDTO, RunEvent, RunRequest, StageSourceKind, SurfaceDTO, TestResult } from '@/lib/events';
 import type { RunMeta } from '@/lib/records';
+>>>>>>> 289c7c5cc02649846ed191d2aba8489e08738311
 import { getCurrentUser } from '@/lib/server/session';
 import { getPatToken, saveRun } from '@/lib/server/store';
-import type { Ir } from '@cn/contracts';
 
 // The pipeline uses git/child_process/fs and the TypeScript compiler — Node runtime only.
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 export const maxDuration = 120;
 
+<<<<<<< HEAD
+=======
 interface AcquireAcc {
   trust: 'declared' | 'inferred';
   sourceType: string;
@@ -84,6 +89,7 @@ async function persist(userId: string, req: RunRequest, acc: Accumulator): Promi
   }
 }
 
+>>>>>>> 289c7c5cc02649846ed191d2aba8489e08738311
 export async function POST(req: NextRequest): Promise<Response> {
   const user = await getCurrentUser();
   if (!user) return new Response('Unauthorized', { status: 401 });
@@ -97,11 +103,12 @@ export async function POST(req: NextRequest): Promise<Response> {
 
   const encoder = new TextEncoder();
   const ac = new AbortController();
-  const acc: Accumulator = {};
 
   const stream = new ReadableStream<Uint8Array>({
     async start(controller) {
       const send = (event: RunEvent): void => {
+<<<<<<< HEAD
+=======
         // Mirror each event into the accumulator so the run can be persisted on completion.
         switch (event.t) {
           case 'start':
@@ -137,6 +144,7 @@ export async function POST(req: NextRequest): Promise<Response> {
             acc.done = { ok: event.ok, ms: event.ms };
             break;
         }
+>>>>>>> 289c7c5cc02649846ed191d2aba8489e08738311
         try {
           controller.enqueue(encoder.encode(`data: ${JSON.stringify(event)}\n\n`));
         } catch {
@@ -162,9 +170,16 @@ export async function POST(req: NextRequest): Promise<Response> {
           send({ t: 'done', ok: false, ms: 0 });
           return;
         }
-        await runPipeline(built.source, send, ac.signal);
-        // Record the run (skipped automatically if the client aborted before acquire).
-        if (!ac.signal.aborted) await persist(user.id, body, acc);
+        const result = await executePipeline(built.source, { emit: send, signal: ac.signal, stagger: true });
+        // Record the run (skipped automatically if the client aborted before completion).
+        if (!ac.signal.aborted) {
+          try {
+            const { meta, payload } = buildRunPayload({ userId: user.id, request: body, result });
+            await saveRun(meta, payload);
+          } catch {
+            /* persistence is best-effort — never break the response over it */
+          }
+        }
       } catch (e) {
         send({ t: 'error', stage: 'input', message: e instanceof Error ? e.message : String(e) });
         send({ t: 'done', ok: false, ms: 0 });

@@ -31,6 +31,7 @@
     "studio:db:import": "tsx apps/studio/scripts/import-data.mts",
     "qa": "tsx scripts/qa.mts",
     "verify": "tsx packages/cli/src/index.ts verify --openapi samples/openapi/tasks-api.yaml --sdk samples/sdk-typescript --sdk samples/sdk-python --mcp samples/mcp/tasks-tools.json"
+    "studio:migrate:projects": "tsx apps/studio/scripts/migrate-presets-to-projects.mts"
   },
   "devDependencies": {
     "@types/js-yaml": "^4.0.9",

@@ -1,15 +1,13 @@
 'use client';
 
 import * as React from 'react';
-import { useSearchParams } from 'next/navigation';
 import { Play, Terminal as TerminalIcon, Workflow } from 'lucide-react';
 import type { RunRequest, StageSourceKind } from '@/lib/events';
 import { useRun } from '@/lib/useRun';
 import { useInputCli } from '@/lib/useInputCli';
-import { fetchPresets } from '@/lib/client/api';
 import { cx } from '@/lib/ui';
 import { Button, Spinner } from '@/components/ui';
-import { PresetsToolbar } from '@/components/run/PresetsToolbar';
+import { SaveProjectButton } from '@/components/run/SaveProjectButton';
 import { RunResults } from '@/components/run/RunResults';
 import { CliControls } from './CliControls';
 import { CliOutput } from './CliOutput';
@@ -59,7 +57,6 @@ export function InputWorkspace({
   request,
   runnable,
   invalidHint,
-  onLoadPreset,
   children,
 }: {
   kind: StageSourceKind;
@@ -70,7 +67,6 @@ export function InputWorkspace({
   request: RunRequest;
   runnable: boolean;
   invalidHint?: string;
-  onLoadPreset: (req: RunRequest) => void;
   children: React.ReactNode;
 }) {
   const { state, running, run } = useRun();
@@ -84,24 +80,6 @@ export function InputWorkspace({
 
   const studioRef = React.useRef<HTMLDivElement>(null);
   const cliRef = React.useRef<HTMLDivElement>(null);
-
-  // Load a preset chosen from the sidebar (?preset=<id>) into the form, once per id.
-  const params = useSearchParams();
-  const presetId = params.get('preset');
-  const loadedPreset = React.useRef<string | null>(null);
-  React.useEffect(() => {
-    if (!presetId || loadedPreset.current === presetId) return;
-    loadedPreset.current = presetId;
-    let alive = true;
-    fetchPresets(kind).then((list) => {
-      const preset = list.find((p) => p.id === presetId);
-      if (alive && preset) onLoadPreset(preset.request);
-    });
-    return () => {
-      alive = false;
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [presetId, kind]);
 
   React.useEffect(() => {
     setIsMac(typeof navigator !== 'undefined' && /mac/i.test(navigator.platform || navigator.userAgent));
@@ -167,7 +145,7 @@ export function InputWorkspace({
         {/* LEFT — input. Fixed in place; only scrolls internally if it can't fit the panel height. */}
         <div className="min-w-0 space-y-5 xl:min-h-0 xl:overflow-y-auto xl:pr-1">
           <div className="rounded-lg border border-border bg-card p-5">
-            <PresetsToolbar kind={kind} request={request} onLoad={onLoadPreset} />
+            <SaveProjectButton kind={kind} request={request} />
             <div className="my-4 h-px bg-border" />
             {children}
           </div>

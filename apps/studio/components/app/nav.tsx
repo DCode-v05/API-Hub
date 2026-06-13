@@ -1,4 +1,4 @@
-import { FileJson, Github, History, Home, Package, Plug } from 'lucide-react';
+import { FileJson, FolderGit2, Github, History, Home, Package, Plug } from 'lucide-react';
 
 export interface NavItem {
   href: string;
@@ -13,6 +13,13 @@ export interface NavItem {
 
 export const NAV: NavItem[] = [
   { href: '/', label: 'Home', Icon: Home, group: 'main' },
+  {
+    href: '/projects',
+    label: 'Projects',
+    Icon: FolderGit2,
+    group: 'main',
+    blurb: 'Version-controlled sources that regenerate their surfaces whenever the input changes.',
+  },
   {
     href: '/github',
     label: 'GitHub',

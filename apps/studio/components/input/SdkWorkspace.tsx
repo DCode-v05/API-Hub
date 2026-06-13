@@ -73,10 +73,6 @@ export function SdkWorkspace() {
       request={toRequest(f)}
       runnable={runnable}
       invalidHint="Enter the local path to an SDK directory."
-      onLoadPreset={(req) => {
-        setCheck(null);
-        setF({ sdkPath: req.sdkPath ?? '', lang: (req.lang as Lang) ?? '' });
-      }}
     >
       <div className="space-y-4">
         <div className="space-y-1.5">

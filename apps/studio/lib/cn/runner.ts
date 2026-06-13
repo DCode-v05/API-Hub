@@ -1,3 +1,8 @@
+<<<<<<< HEAD
+import type { SourceRef } from '@cn/contracts';
+import type { RunEvent } from '../events';
+import { executePipeline } from './pipeline';
+=======
 import { AcquireService, describeSource } from '@cn/acquire';
 import type { AcquireContext, CanonicalArtifact, Diagnostic, OpenApiDocument, RepairProposal, SourceRef } from '@cn/contracts';
 import { ingestOne } from '@cn/ingest';
@@ -8,12 +13,17 @@ import { labelFor } from './sources';
 import { runConversionTests } from './tests';
 
 const HTTP_METHODS = new Set(['get', 'put', 'post', 'delete', 'options', 'head', 'patch', 'trace']);
+>>>>>>> 289c7c5cc02649846ed191d2aba8489e08738311
 
 /**
  * Run the full pipeline in-process, emitting an event per stage so the browser can render it live.
- * A small stagger between the (fast) post-acquire stages makes the flow visible.
+ * Thin wrapper over the shared `executePipeline` orchestrator (lib/cn/pipeline.ts); the cosmetic
+ * inter-stage stagger that makes the flow legible lives here, in the streaming path only.
  */
 export async function runPipeline(source: SourceRef, emit: (e: RunEvent) => void, signal?: AbortSignal): Promise<void> {
+<<<<<<< HEAD
+  await executePipeline(source, { emit, signal, stagger: true });
+=======
   const t0 = Date.now();
   emit({ t: 'start', source: { kind: source.kind as StageSourceKind, describe: describeSource(source), label: labelFor(source) } });
 
@@ -127,4 +137,5 @@ function sleep(ms: number): Promise<void> {
 
 function errMessage(e: unknown): string {
   return e instanceof Error ? e.message : String(e);
+>>>>>>> 289c7c5cc02649846ed191d2aba8489e08738311
 }
