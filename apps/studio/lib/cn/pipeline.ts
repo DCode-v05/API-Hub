@@ -85,7 +85,6 @@ export async function executePipeline(source: SourceRef, opts: ExecuteOptions = 
     log: (line) => emit?.({ t: 'log', line }),
   };
 
-  // ── 1. acquire ──
   emit?.({ t: 'stage', stage: 'acquire', status: 'running' });
   const ta = Date.now();
   let artifact: CanonicalArtifact;
@@ -108,7 +107,6 @@ export async function executePipeline(source: SourceRef, opts: ExecuteOptions = 
     return result;
   }
 
-  // ── 2. ingest ──
   if (signal?.aborted) return finish(result, t0);
   if (stagger) await sleep(180);
   emit?.({ t: 'stage', stage: 'ingest', status: 'running' });
@@ -128,7 +126,6 @@ export async function executePipeline(source: SourceRef, opts: ExecuteOptions = 
     return result;
   }
 
-  // ── 3. build IR ──
   if (signal?.aborted) return finish(result, t0);
   if (stagger) await sleep(180);
   emit?.({ t: 'stage', stage: 'build', status: 'running' });
@@ -137,7 +134,6 @@ export async function executePipeline(source: SourceRef, opts: ExecuteOptions = 
   result.ir = ir;
   emit?.({ t: 'build', ms: Date.now() - tb, ir });
 
-  // ── 4. project surfaces ──
   if (signal?.aborted) return finish(result, t0);
   if (stagger) await sleep(180);
   emit?.({ t: 'stage', stage: 'project', status: 'running' });
@@ -150,7 +146,6 @@ export async function executePipeline(source: SourceRef, opts: ExecuteOptions = 
   }));
   emit?.({ t: 'project', ms: Date.now() - tp, surfaces: result.surfaces });
 
-  // ── 5. test (verify the conversion: structure, op coverage, Pass^k, round-trip) ──
   if (signal?.aborted) return finish(result, t0);
   if (stagger) await sleep(180);
   emit?.({ t: 'stage', stage: 'test', status: 'running' });

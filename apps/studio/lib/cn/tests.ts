@@ -26,22 +26,18 @@ export async function runConversionTests(
     tests.push({ name, status: ok ? 'pass' : 'fail', detail: ok ? detailOk : detailFail, category });
   };
 
-  // ── Pipeline ──
   add('Spec is valid OpenAPI 3.1', validated.valid, 'Ingest produced a valid document', 'Validation failed', 'Pipeline');
   const errCount = validated.diagnostics.filter((d) => d.severity === 'error').length;
   add('No blocking diagnostics', errCount === 0, 'Zero error-severity diagnostics', `${errCount} error diagnostic(s)`, 'Pipeline');
 
-  // ── IR ──
   add('IR has operations', ir.operations.length > 0, `${ir.operations.length} operation(s) in the IR`, 'IR is empty', 'IR');
   const ids = new Set(ir.operations.map((o) => o.id));
   add('Operation IDs are unique', ids.size === ir.operations.length, `${ids.size} unique IDs`, 'Duplicate operation IDs found', 'IR');
   add('IR is content-hashed', /^sha256:[0-9a-f]{64}$/.test(ir.hash), ir.hash.slice(0, 23) + '…', 'Missing/invalid IR hash', 'IR');
 
-  // ── Project ──
   const fileCount = projection.surfaces.reduce((n, s) => n + s.files.length, 0);
   add('Surfaces generated', fileCount > 0, `${fileCount} files across ${projection.surfaces.length} surface(s)`, 'No files generated', 'Project');
 
-  // ── MCP surface ──
   const mcp = projection.surfaces.find((s) => s.kind === 'mcp');
   if (mcp) {
     const toolsFile = mcp.files.find((f) => f.path === 'tools.json');
@@ -63,7 +59,6 @@ export async function runConversionTests(
     add('MCP: hostable server emitted', mcp.files.some((f) => f.path === 'http-server.mjs') && mcp.files.some((f) => f.path === 'Dockerfile'), 'http-server.mjs + Dockerfile present', 'No HTTP server / Dockerfile', 'MCP');
   }
 
-  // ── SDK surfaces ──
   const ts = projection.surfaces.find((s) => s.kind === 'sdk-typescript');
   if (ts) {
     const hasClient = ts.files.some((f) => f.path === 'src/client.ts');
@@ -77,7 +72,6 @@ export async function runConversionTests(
     add('SDK (Py): client module present', py.files.some((f) => f.path.endsWith('client.py')), 'client.py generated', 'No client.py', 'SDK');
   }
 
-  // ── Determinism (Pass^k) ──
   const baseSig = projectionSig(projection);
   const irHashes: string[] = [];
   let sigStable = true;
@@ -89,7 +83,6 @@ export async function runConversionTests(
   add('Deterministic — IR hash stable (Pass^3)', irHashes.every((h) => h === ir.hash), 'IR hash identical across 3 rebuilds', 'IR hash drifted across rebuilds', 'Determinism');
   add('Deterministic — surfaces byte-identical (Pass^3)', sigStable, 'Every file identical across 3 rebuilds', 'Generated files drifted across rebuilds', 'Determinism');
 
-  // ── Round-trip fidelity ──
   try {
     const rt = await roundTrip(projection, ir);
     if (rt) {

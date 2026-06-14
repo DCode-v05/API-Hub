@@ -44,8 +44,6 @@ function iso(v: unknown): string {
   return new Date(v as string).toISOString();
 }
 
-/* ── Secret-box (AES-256-GCM) for tokens at rest ──────────────────────────── */
-
 function aesKey(): Buffer {
   return createHash('sha256').update(getSecret()).digest();
 }
@@ -66,8 +64,6 @@ function decryptSecret(rec: { iv: string; ct: string; tag: string }): string | u
     return undefined; // secret rotated, or tampered — treat as unavailable
   }
 }
-
-/* ── Users ────────────────────────────────────────────────────────────────── */
 
 interface UserRow {
   id: string;
@@ -123,8 +119,6 @@ export async function createUser(input: { email: string; name: string; passwordH
   return user;
 }
 
-/* ── Presets ──────────────────────────────────────────────────────────────── */
-
 /** Strip secrets before anything is persisted (we never store a GitHub PAT). */
 function sanitizeRequest(req: RunRequest): RunRequest {
   const { pat: _pat, ...rest } = req;
@@ -172,8 +166,6 @@ export async function deletePreset(userId: string, presetId: string): Promise<bo
   const { rowCount } = await query(`DELETE FROM presets WHERE id = $1 AND user_id = $2`, [presetId, userId]);
   return rowCount > 0;
 }
-
-/* ── Projects (version-controlled inputs) ─────────────────────────────────── */
 
 const PROJECT_VERSION_CAP = 25; // keep the newest N versions per project (each carries a full payload)
 
@@ -341,8 +333,6 @@ export async function listDueWatchedProjects(limit = 20): Promise<ProjectRecord[
   return rows.map(rowToProject);
 }
 
-/* ── Project versions ─────────────────────────────────────────────────────── */
-
 interface ProjectVersionRow {
   id: string;
   project_id: string;
@@ -486,8 +476,6 @@ export async function updateProjectCheck(
   );
 }
 
-/* ── PAT vault ────────────────────────────────────────────────────────────── */
-
 interface PatRow {
   id: string;
   name: string;
@@ -531,8 +519,6 @@ export async function deletePat(userId: string, patId: string): Promise<boolean>
   const { rowCount } = await query(`DELETE FROM pats WHERE id = $1 AND user_id = $2`, [patId, userId]);
   return rowCount > 0;
 }
-
-/* ── Runs ─────────────────────────────────────────────────────────────────── */
 
 interface RunRow {
   id: string;
@@ -613,8 +599,6 @@ export async function deleteRun(userId: string, runId: string): Promise<boolean>
   const { rowCount } = await query(`DELETE FROM runs WHERE id = $1 AND user_id = $2`, [runId, userId]);
   return rowCount > 0;
 }
-
-/* ── Deployments (hosted MCP servers) ─────────────────────────────────────── */
 
 interface DeploymentRow {
   id: string;
@@ -729,8 +713,6 @@ export async function listActiveDeployments(): Promise<DeploymentRecord[]> {
   return rows.map(rowToDeployment);
 }
 
-/* ── Host config (upstream API for the hosted MCP server) ─────────────────── */
-
 interface HostConfigRow {
   base_url: string;
   iv: string | null;
@@ -781,8 +763,6 @@ export async function getHostToken(userId: string, projectId: string): Promise<s
   if (!r || !r.iv || !r.ct || !r.tag) return undefined;
   return decryptSecret({ iv: r.iv, ct: r.ct, tag: r.tag });
 }
-
-/* ── Publishes (SDK → npm / PyPI) ─────────────────────────────────────────── */
 
 interface PublishRow {
   id: string;

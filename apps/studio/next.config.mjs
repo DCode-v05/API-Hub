@@ -1,3 +1,26 @@
+import { existsSync, readFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+// Single source of truth: load the ONE repo-root .env (and .env.local) into process.env so the
+// Studio shares the same file as the `cn` CLI. Next only auto-loads env from this app dir, so we
+// reach two levels up. `.env.local` wins over `.env`; a real OS env var wins over both (we never
+// overwrite an already-set key). Runs on every Next worker that evaluates this config.
+const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
+for (const file of ['.env.local', '.env']) {
+  const path = join(repoRoot, file);
+  if (!existsSync(path)) continue;
+  for (const line of readFileSync(path, 'utf8').split(/\r?\n/)) {
+    const m = line.match(/^\s*(?:export\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*?)\s*$/);
+    if (!m || m[0].trimStart().startsWith('#')) continue;
+    const key = m[1];
+    if (process.env[key] !== undefined) continue;
+    let val = m[2];
+    if ((val.startsWith('"') && val.endsWith('"')) || (val.startsWith("'") && val.endsWith("'"))) val = val.slice(1, -1);
+    process.env[key] = val;
+  }
+}
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   // Allow building into an isolated dir (e.g. for a verification build while `next dev` holds .next).

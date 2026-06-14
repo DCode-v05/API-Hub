@@ -18,7 +18,6 @@ export default async function HomePage() {
 
   return (
     <div className="mx-auto max-w-6xl px-5 py-8 sm:px-8">
-      {/* Hero */}
       <section className="overflow-hidden rounded-xl border border-border bg-card">
         <div className="bg-grid border-b border-border px-7 py-10 sm:px-10 sm:py-12">
           <div className="inline-flex items-center gap-1.5 rounded-full border border-border bg-background/60 px-2.5 py-1 text-xs font-medium text-muted-foreground">
@@ -49,7 +48,6 @@ export default async function HomePage() {
           </div>
         </div>
 
-        {/* Stage strip */}
         <div className="flex flex-wrap items-center gap-y-3 px-7 py-5 sm:px-10">
           {STAGES.map((s, i) => (
             <div key={s.name} className="flex items-center">
@@ -66,7 +64,6 @@ export default async function HomePage() {
         </div>
       </section>
 
-      {/* Input types */}
       <section className="mt-10">
         <h2 className="mb-3 text-sm font-semibold tracking-tight">Choose an input</h2>
         <div className="grid gap-4 sm:grid-cols-2">
@@ -91,7 +88,6 @@ export default async function HomePage() {
         </div>
       </section>
 
-      {/* Tools */}
       <section className="mt-8 mb-4">
         <h2 className="mb-3 text-sm font-semibold tracking-tight">Tools</h2>
         <div className="grid gap-4 sm:grid-cols-2">

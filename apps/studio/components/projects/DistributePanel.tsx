@@ -37,8 +37,6 @@ export function DistributePanel({ projectId, version }: { projectId: string; ver
   );
 }
 
-/* ── MCP server ───────────────────────────────────────────────────────────── */
-
 function McpSection({
   projectId,
   version,
@@ -166,8 +164,6 @@ function HostLogs({ projectId, deploymentId }: { projectId: string; deploymentId
     </pre>
   );
 }
-
-/* ── CLI: host as a command service + download ────────────────────────────── */
 
 function CliSection({
   projectId,
@@ -315,8 +311,6 @@ function CliTester({ projectId, deploymentId }: { projectId: string; deploymentI
 function parseArgs(cmd: string): string[] {
   return (cmd.match(/"[^"]*"|'[^']*'|\S+/g) ?? []).map((t) => t.replace(/^["']|["']$/g, ''));
 }
-
-/* ── SDK publishing ───────────────────────────────────────────────────────── */
 
 function SdkSection({
   projectId,
@@ -466,8 +460,6 @@ function SdkRow({
     </div>
   );
 }
-
-/* ── small helpers ────────────────────────────────────────────────────────── */
 
 function CommandRow({ cmd, className }: { cmd: string; className?: string }) {
   return (

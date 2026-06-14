@@ -4,8 +4,6 @@ import * as React from 'react';
 import { Loader2 } from 'lucide-react';
 import { cx } from '@/lib/ui';
 
-/* ── Button ───────────────────────────────────────────────────────────── */
-
 type ButtonVariant = 'default' | 'secondary' | 'outline' | 'ghost' | 'danger';
 type ButtonSize = 'sm' | 'md' | 'lg' | 'icon';
 
@@ -44,8 +42,6 @@ export function Button({
   );
 }
 
-/* ── Card ─────────────────────────────────────────────────────────────── */
-
 export function Card({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {
   return <div className={cx('rounded-lg border border-border bg-card', className)} {...props} />;
 }
@@ -58,8 +54,6 @@ export function CardTitle({ className, ...props }: React.HTMLAttributes<HTMLHead
 export function CardContent({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {
   return <div className={cx('p-5', className)} {...props} />;
 }
-
-/* ── Badge ────────────────────────────────────────────────────────────── */
 
 type BadgeVariant = 'muted' | 'outline' | 'accent' | 'success' | 'warning' | 'danger';
 const BADGE_VARIANTS: Record<BadgeVariant, string> = {
@@ -83,8 +77,6 @@ export function Badge({
     />
   );
 }
-
-/* ── Form controls ────────────────────────────────────────────────────── */
 
 export function Label({ className, ...props }: React.LabelHTMLAttributes<HTMLLabelElement>) {
   return <label className={cx('text-[13px] font-medium text-foreground', className)} {...props} />;
@@ -154,8 +146,6 @@ export function Field({
   );
 }
 
-/* ── Segmented control ────────────────────────────────────────────────── */
-
 export function SegmentedControl<T extends string>({
   options,
   value,
@@ -183,8 +173,6 @@ export function SegmentedControl<T extends string>({
     </div>
   );
 }
-
-/* ── Spinner ──────────────────────────────────────────────────────────── */
 
 export function Spinner({ className }: { className?: string }) {
   return <Loader2 className={cx('animate-spin', className)} />;

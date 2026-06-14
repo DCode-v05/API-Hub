@@ -97,7 +97,6 @@ export function HistoryWorkspace() {
       </div>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-[320px_1fr]">
-        {/* List */}
         <div className="space-y-1.5">
           {runs === null ? (
             <p className="px-1 py-6 text-sm text-muted-foreground">Loading…</p>
@@ -161,7 +160,6 @@ export function HistoryWorkspace() {
           )}
         </div>
 
-        {/* Detail */}
         <div className="min-w-0">
           {loading ? (
             <div className="flex items-center gap-2 rounded-lg border border-border bg-card px-4 py-16 text-sm text-muted-foreground">

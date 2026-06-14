@@ -105,7 +105,6 @@ export function SurfacesBrowser({ surfaces, label }: { surfaces: SurfaceDTO[]; l
       </div>
 
       <div className="grid grid-cols-1 gap-0 overflow-hidden rounded-lg border border-border md:grid-cols-[230px_1fr]">
-        {/* File list */}
         <div className="max-h-[460px] overflow-y-auto border-b border-border bg-muted/20 md:border-b-0 md:border-r">
           {surface?.files.map((f) => {
             const isDoc = f.path.endsWith('.md');
@@ -126,7 +125,6 @@ export function SurfacesBrowser({ surfaces, label }: { surfaces: SurfaceDTO[]; l
           })}
         </div>
 
-        {/* Code viewer */}
         <div className="flex min-w-0 flex-col">
           <div className="flex items-center justify-between gap-2 border-b border-border bg-muted/30 px-3 py-2">
             <code className="min-w-0 truncate font-mono text-xs text-muted-foreground">{surface?.dir}/{file?.path}</code>

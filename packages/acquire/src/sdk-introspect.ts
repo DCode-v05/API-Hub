@@ -13,8 +13,6 @@ export interface SdkFile {
   text: string;
 }
 
-// ---------- TypeScript ----------
-
 /**
  * Reverse-derive operations from a TypeScript SDK by walking the AST for exported classes
  * (their public methods) and exported functions. Types are mapped to JSON Schema heuristically —
@@ -131,8 +129,6 @@ function stripClientSuffix(name: string): string {
 function lowerFirst(s: string): string {
   return s.length === 0 ? s : s[0]!.toLowerCase() + s.slice(1);
 }
-
-// ---------- Python ----------
 
 const PY_DEF = /^[ \t]*(?:async[ \t]+)?def[ \t]+([A-Za-z_]\w*)[ \t]*\(([\s\S]*?)\)[ \t]*(?:->[ \t]*[^:]+)?:/gm;
 

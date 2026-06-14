@@ -12,8 +12,6 @@ import type {
 
 /** Thin client wrappers over the studio's REST endpoints. All are best-effort and never throw. */
 
-/* ── Projects (version-controlled inputs) ─────────────────────────────────── */
-
 /** Fired after a project is created/updated/deleted/synced so the sidebar + dashboard refresh. */
 export const PROJECTS_CHANGED = 'cn:projects-changed';
 export function notifyProjectsChanged(): void {
@@ -104,8 +102,6 @@ export async function fetchProjectVersion(id: string, version: number): Promise<
     return null;
   }
 }
-
-/* ── Hosting (MCP server) & publishing (SDKs) ─────────────────────────────── */
 
 export const HOSTS_CHANGED = 'cn:hosts-changed';
 export function notifyHostsChanged(): void {
@@ -238,8 +234,6 @@ export async function removeRun(id: string): Promise<boolean> {
     return false;
   }
 }
-
-/* ── PAT vault ────────────────────────────────────────────────────────────── */
 
 export async function fetchPats(): Promise<PatDTO[]> {
   try {

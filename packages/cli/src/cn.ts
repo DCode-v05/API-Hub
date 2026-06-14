@@ -733,8 +733,6 @@ async function emit(value: unknown, out: string | undefined, defaultName: string
   process.stderr.write(`→ wrote ${file}\n`);
 }
 
-// ---------- summaries (stderr) ----------
-
 const HTTP_METHODS = new Set(['get', 'put', 'post', 'delete', 'options', 'head', 'patch', 'trace']);
 
 function countOperations(paths: Record<string, unknown> | undefined): number {
@@ -802,8 +800,6 @@ function reportIr(ir: Ir): void {
 function errMessage(err: unknown): string {
   return err instanceof Error ? err.message : String(err);
 }
-
-// ---------- help ----------
 
 function printHelp(): void {
   process.stdout.write(`cn ${VERSION} — Connector Network CLI

@@ -27,8 +27,6 @@ export interface PresetRecord {
   createdAt: string;
 }
 
-/* ── Projects (version-controlled inputs) ─────────────────────────────────── */
-
 export type ProjectStatus = 'pending' | 'ok' | 'unchanged' | 'changed' | 'error';
 export type ProjectTrigger = 'initial' | 'manual' | 'watch';
 
@@ -114,8 +112,6 @@ export interface RunMeta {
   testsFailed?: number;
   createdAt: string;
 }
-
-/* ── Hosting & publishing ─────────────────────────────────────────────────── */
 
 export type DeploymentStatus = 'starting' | 'running' | 'stopped' | 'failed';
 

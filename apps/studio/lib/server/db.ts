@@ -179,7 +179,7 @@ export function getPool(): Pool {
   if (!globalForPool.__cnPool) {
     const connectionString = process.env['DATABASE_URL'];
     if (!connectionString) {
-      throw new Error('DATABASE_URL is not set — point it at your PostgreSQL instance (see apps/studio/.env.example).');
+      throw new Error('DATABASE_URL is not set — point it at your PostgreSQL instance (see .env.example at the repo root).');
     }
     const ssl = sslConfig();
     globalForPool.__cnPool = new Pool({

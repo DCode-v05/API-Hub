@@ -107,7 +107,7 @@ describe('review regressions', () => {
     };
     const ir = buildIr(ingestOne(artifactOf(doc)));
     const ids = ir.operations.map((o) => o.id);
-    expect(new Set(ids).size).toBe(ids.length); // all unique
+    expect(new Set(ids).size).toBe(ids.length);
     expect(ids).toContain('op_get_a_b');
     expect(ids).toContain('op_get_a_b_2');
     expect(ir.diagnostics.some((d) => d.code === 'ir.duplicate_operation_id')).toBe(true);
