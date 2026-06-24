@@ -1,97 +1,110 @@
 # API Hub
 
-## Project Description
-API Hub (powered by the **Connector Network** pipeline) turns any API source — an OpenAPI document, a GitHub repository, an existing SDK, or a running MCP server — into production-ready client surfaces: a **TypeScript SDK**, a **Python SDK**, a **CLI**, an **MCP server**, and **reference docs**. A source "climbs once" through a deterministic pipeline to a content-hashed Intermediate Representation (IR), which then fans out into every surface, so they never drift apart. A built-in **Next.js Studio** adds version control for inputs, one-click hosting, and one-click publishing to npm and PyPI.
+**Point it at any API source and get back a TypeScript SDK, a Python SDK, a CLI, an MCP server, and docs — all generated from one content-hashed intermediate representation, so they never drift apart.**
 
----
+![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?style=flat&logo=typescript&logoColor=white) ![Node.js](https://img.shields.io/badge/Node.js%20%E2%89%A520-339933?style=flat&logo=nodedotjs&logoColor=white) ![Next.js](https://img.shields.io/badge/Next.js%2015-000000?style=flat&logo=nextdotjs&logoColor=white) ![React](https://img.shields.io/badge/React%2019-61DAFB?style=flat&logo=react&logoColor=black) ![Tailwind CSS](https://img.shields.io/badge/Tailwind%20CSS-06B6D4?style=flat&logo=tailwindcss&logoColor=white) ![PostgreSQL](https://img.shields.io/badge/PostgreSQL%2016-4169E1?style=flat&logo=postgresql&logoColor=white) ![OpenAPI](https://img.shields.io/badge/OpenAPI%203.1-6BA539?style=flat&logo=openapiinitiative&logoColor=white) ![Vitest](https://img.shields.io/badge/Vitest-6E9F18?style=flat&logo=vitest&logoColor=white)
 
-## Project Details
+## Overview
 
-### Problem Statement
-Every API consumer re-implements the same plumbing by hand — clients, CLIs, agent tools, documentation — and those artifacts drift out of sync with the spec over time. API Hub makes the spec the single source of truth: ingest it **once**, and generate every surface **deterministically** from a content-hashed IR. The same source always produces the same output, and a change in the source is the only thing that can change a surface. APIs without a spec are supported too, by reverse-deriving the contract from an existing SDK or MCP server.
+Every team that consumes an API ends up hand-writing the same plumbing over and over: a client library, a CLI, agent tooling, reference docs. Then the spec changes and all of those artifacts quietly fall out of sync.
 
-### The Pipeline
-A source narrows one axis of "mess" per stage, then every surface is projected from the resulting IR:
+API Hub flips that around. You give it a source — an OpenAPI document, a GitHub repository, an existing SDK, or a running MCP server — and it pulls that source through a fixed pipeline down to a single normalized, content-hashed **intermediate representation (IR)**. Every output surface is then *projected* from that IR. Because the surfaces are pure functions of the IR, the same source always produces the same output, and the only thing that can change a surface is a change in the source.
+
+Around the engine sits a **Studio** — a Next.js web app that gives the whole thing version control for inputs, IR-level diffs between versions, one-click hosting of generated MCP servers and CLIs, and one-click publishing of the SDKs to npm and PyPI.
+
+I built this during my time as an AI Engineering intern at **September AI (September Platforms)**, as one of the agentic-UI prototypes in the company's internal platform work. This repository is the standalone, self-contained version of the connector pipeline and its Studio.
+
+## Key Features
+
+- **Four input adapters, one contract.** Acquire an API from a GitHub repo (cloned with a PAT, pinned to a commit SHA), an OpenAPI file or URL, an existing SDK directory, or a live MCP server.
+- **Spec-less sources, recovered.** No OpenAPI doc? The SDK adapter reverse-derives operations by introspecting TypeScript and Python client signatures; the MCP adapter reads a server's advertised tools and maps each `inputSchema` to an operation.
+- **Five generated surfaces from every source.** A `tsc`-clean TypeScript SDK, a `py_compile`-clean Python SDK, a runnable CLI, a zero-dependency Streamable-HTTP MCP server, and reference docs.
+- **Deterministic, content-hashed IR.** Both the canonical artifact and the IR are hashed with sha256 over canonical (key-sorted) content, excluding timestamps and provenance — same source in, same hash out.
+- **Stable operation IDs.** Identifiers are derived from `operationId` (or method + path), not file position, so reordering or editing the spec never renames an operation. Collisions are de-duplicated and reported.
+- **Bad specs fail loud.** Validation blocks on real errors (undeclared path params, duplicate operation IDs, unresolved `$ref`s); `cn build` refuses to emit IR from an invalid spec.
+- **Repair proposals that never mutate.** The ingest stage drafts deterministic fix suggestions for a human to accept — it never silently rewrites your spec.
+- **Studio version control.** Each re-sync of a source records a new version with an IR diff (operations added / removed / changed, with severity). An optional watcher re-checks GitHub/URL sources and snapshots a new version whenever the content hash moves.
+- **One-click distribution.** Host a generated MCP server (`POST /mcp`) or CLI (as an HTTP command service at `/run`) as a managed local process with start / stop / status / live logs, download the CLI package, or publish the SDKs.
+- **Auth and secrets handled.** Email/password accounts with hand-rolled JWT (HS256) sessions; upstream API tokens are AES-GCM encrypted at rest and never sent to the browser.
+- **Round-trip conversion tests.** After projection, generated surfaces are tested back against the IR so the pipeline catches its own regressions.
+
+## How It Works
+
+A source "climbs once" through the pipeline. Each stage strips out one axis of mess, and once you reach the IR, every surface fans out from it.
 
 ```
-SourceRef ─acquire→ CanonicalArtifact ─ingest→ ValidatedArtifact ─build→ IR ─project→ surfaces ─test→ ✓
- (4 inputs)        (origin-blind, pinned)     (adapt·assemble·          (hashed)   SDK·MCP·CLI·docs   (round-trip)
-                                               validate·repair)
+SourceRef --acquire--> CanonicalArtifact --ingest--> ValidatedArtifact --build--> IR --project--> surfaces --test--> ok
+ (4 inputs)            (origin-blind, pinned)        (adapt/assemble/             (hashed)   SDK/MCP/CLI/docs   (round-trip)
+                                                      validate/repair)
 ```
 
-| Stage | Removes | What it does |
-|---|---|---|
-| **Acquire** | location | fetch from anywhere, pin the revision, bundle refs → an origin-blind canonical artifact |
-| **Adapt** | format | any version → one OpenAPI 3.1 target shape (3.0 ↔ 3.1 normalize; best-effort Swagger 2.0) |
-| **Assemble** | structure | one self-contained document; merge multi-spec under a namespace; note circular refs |
-| **Validate + Repair** | quality | blocking lint ("is it correct?") + advisory, never-applied repair proposals ("is it clear?") |
-| **Build (IR)** | — | normalized, content-hashed IR with stable, identity-based operation IDs |
-| **Project** | — | render the IR into surfaces (SDK · MCP · CLI · docs) — same params/verb/path, different clothes |
-| **Test** | — | conversion tests that round-trip the generated surfaces back against the IR |
+### Acquire — removes *location*
 
-### Inputs (acquisition)
+Each input type has its own adapter (`packages/acquire/src/adapters`). The GitHub adapter clones with a PAT, pins the commit SHA, finds the spec, and bundles its `$ref`s; the OpenAPI adapter loads a file or URL and bundles external refs into one self-contained document; the SDK adapter uses an embedded spec if present, otherwise introspects client signatures; the MCP adapter reads advertised tools over a manifest or stdio. The result is an **origin-blind canonical artifact** — no repo paths or URLs survive into the document, and a `contentHash` plus the pinned revision are attached as provenance.
 
-| Input | How it's acquired | Trust |
-|---|---|---|
-| **GitHub repo + PAT** | clone with the PAT → pin commit SHA → find spec → bundle `$ref`s | `declared` |
-| **OpenAPI document** (file/URL) | load → bundle external `$ref`s into one self-contained doc | `declared` |
-| **Existing SDK** (dir) | embedded spec if present, else reverse-derive TS/Python signatures | `inferred` |
-| **Existing MCP server** (manifest/stdio) | read advertised tools → map each `inputSchema` to an operation | `inferred` |
+### Ingest — removes *format*, *structure*, and *quality*
 
-### Generated Surfaces
-- **TypeScript SDK** — a `tsc`-clean package; reads base URL + token from `CN_BASE_URL` / `CN_TOKEN`.
-- **Python SDK** — a `py_compile`-clean package with the same client shape.
-- **CLI** — a runnable command (`<api> <resource> <verb> …`) over the same operations.
-- **MCP server** — a zero-dependency Streamable-HTTP server (`POST /mcp` + `GET /health`) an agent can bind to.
-- **Docs** — reference + examples generated from the IR.
+Ingestion is three steps in one package (`packages/ingest`):
+- **Adapt** normalizes any version down to one OpenAPI 3.1 target shape (3.0 to 3.1 normalization, best-effort Swagger 2.0).
+- **Assemble** merges everything into a single self-contained document, namespacing multi-spec inputs and noting circular references.
+- **Validate + Repair** runs a blocking lint ("is it correct?") and a separate advisory pass ("is it clear?") that drafts repair proposals. Validation errors stop the pipeline; repair proposals are never auto-applied.
 
-### The Studio (web app)
-A Next.js application that wraps the engine in a friendly, status-driven UI:
+### Build — the IR
 
-- **Projects & version control** — name a source; every change becomes a new version with an IR diff (added/removed/changed operations, severity). An optional **auto-sync watcher** re-checks GitHub/URL sources and records a new version whenever the content hash changes.
-- **One-click hosting** — run a generated **MCP server** (at `/mcp`) or a generated **CLI** (as an HTTP command service at `/run`) as a managed local process, with start / stop / status / live logs. Hosts bind to `127.0.0.1`.
-- **SDK publishing** — publish the TypeScript SDK to **npm** and the Python SDK to **PyPI** under a platform-owned org, with auto-incrementing versions and live build/publish logs.
-- **Auth & secrets** — email/password accounts with hand-rolled **JWT (HS256)** sessions; upstream API tokens are **AES-GCM encrypted at rest** and never sent to the browser.
+`packages/ir-core` walks the validated document and produces the normalized IR. Because every input was already flattened to one OpenAPI 3.1 shape, this builder is uniform regardless of origin — the same operation produces the same IR node whether it came from a repo, a spec, an SDK, or an MCP server. Operations get stable, identity-based IDs and a deterministic sort, and the hashed `core` deliberately excludes provenance so that *what the API is* drives the hash, not *where it came from*.
 
-### Guarantees
-- **Origin-blind & deterministic.** No repo paths/URLs survive into the document; both the artifact `contentHash` and the IR `hash` are sha256 over canonical (key-sorted) content, excluding timestamps/provenance — same source ⇒ same hash.
-- **Stable operation IDs.** Derived from `operationId` (or method + path), not file position, so reorders/edits don't change them. Collisions are de-duplicated and reported.
-- **Bad specs fail loud.** Validation errors (undeclared path params, duplicate operationIds, unresolved refs) block; `cn build` refuses to emit IR from an invalid spec.
-- **Repair never mutates.** Proposals are drafted (deterministic heuristics) for a human to freeze — never auto-applied.
-- **Surfaces are pure functions of the IR.** Distribution always re-projects from the pinned IR with the current generator.
+### Project — the surfaces
 
----
+`packages/projection` holds one generator per surface: `sdk-typescript`, `sdk-python`, `mcp`, `cli`, and `docs`. They all read the same operations, parameters, verbs, and paths off the IR — same content, different clothes. The MCP generator emits a zero-dependency server exposing `POST /mcp` and `GET /health` that an agent can bind to directly.
+
+### Test — round-trip
+
+After projection, conversion tests round-trip the generated surfaces back against the IR to confirm nothing was lost in translation. The pipeline reports passed/failed counts and only marks the run `ok` when zero tests fail.
+
+### The Studio
+
+The engine is wrapped in a Next.js 15 / React 19 app (`apps/studio`) with a status-driven UI and a streaming run view (Server-Sent Events per stage). The pipeline lives in exactly one place (`lib/cn/pipeline.ts`) and is called by both the live streaming run and the headless watcher — the watcher can run in `acquireOnly` mode to fingerprint a source and skip codegen when nothing changed. Projects, versions, IR snapshots, PATs, and encrypted secrets are persisted to PostgreSQL via `pg` (no ORM). Distribution always re-projects from the pinned IR with the *current* generator rather than trusting a stored snapshot, so an old version still picks up newer generator features.
+
+## Results / Highlights
+
+- **5 output surfaces from 4 distinct input types**, all reduced through a single IR — roughly 290 KB of TypeScript across 6 engine packages plus the Studio (~670 KB TypeScript total in the repo).
+- **Determinism is enforced, not aspirational:** sha256-over-canonical-content hashing at both the artifact and IR layers means a byte-identical source always yields a byte-identical IR.
+- **Self-checking pipeline:** every run ends with round-trip conversion tests; unit tests (vitest) cover acquire, ingest, ir-core, projection, and the CLI lock/dotenv logic.
+- **Reverse engineering for spec-less APIs:** TS and Python SDK introspection and MCP tool discovery recover an OpenAPI contract where none was published.
 
 ## Tech Stack
-- **Language:** TypeScript (Node.js ≥ 20)
-- **Monorepo:** npm workspaces
-- **Engine:** `@apidevtools/swagger-parser`, `js-yaml` (dependency-light otherwise)
-- **Studio:** Next.js 15 (App Router), React 19, Tailwind CSS, PostgreSQL (`pg`, no ORM)
-- **Tooling:** vitest, tsx, tsc
-- **Publishing toolchain:** npm (TypeScript SDK); Python `build` + `twine` (Python SDK)
 
----
+- **Language:** TypeScript (Node.js >= 20)
+- **Monorepo:** npm workspaces — 6 engine packages (`contracts`, `acquire`, `ingest`, `ir-core`, `projection`, `cli`) + the Studio app
+- **Engine libraries:** `@apidevtools/swagger-parser`, `js-yaml` (dependency-light otherwise)
+- **Studio:** Next.js 15 (App Router), React 19, Tailwind CSS, `lucide-react`, `jszip`
+- **Data:** PostgreSQL 16 via `pg` (no ORM); custom store/diff layer
+- **Security:** hand-rolled JWT (HS256) sessions, AES-GCM secret encryption at rest
+- **Tooling:** vitest, tsx, tsc
+- **Publishing:** npm (TypeScript SDK); Python `build` + `twine` (Python SDK)
+- **Infra:** Docker Compose (PostgreSQL 16 on port 5433)
 
 ## Getting Started
 
-### 1. Clone the repository
+### Prerequisites
+- Node.js 20 or newer
+- Docker (for the Studio's PostgreSQL) — optional if you only use the CLI
+- A GitHub PAT if you want to acquire from private repos
+
+### Installation
 ```bash
 git clone https://github.com/DCode-v05/API-Hub.git
 cd API-Hub
-```
-
-### 2. Install dependencies
-```bash
 npm install
 ```
 
-### 3. Configure environment
-A single `.env` at the repo root is read by both the CLI and the Studio. Copy the template and fill it in:
+### Configure environment
+A single `.env` at the repo root is read by both the CLI and the Studio.
 ```bash
 cp .env.example .env
 ```
 ```ini
-CN_GITHUB_PAT=ghp_your_token_here                                  # for --github inputs
+CN_GITHUB_PAT=ghp_your_token_here                                            # for --github inputs
 DATABASE_URL=postgres://postgres:postgres@localhost:5433/connector_network   # Studio DB
 # Optional — only needed to publish SDKs from the Studio:
 STUDIO_NPM_SCOPE=@your-scope
@@ -100,110 +113,95 @@ STUDIO_PYPI_PREFIX=cn-
 STUDIO_PYPI_TOKEN=pypi-xxx
 ```
 
-### 4. Start PostgreSQL (required for the Studio)
+### Start PostgreSQL (Studio only)
 ```bash
-docker compose up -d        # PostgreSQL 16 on port 5433; schema bootstraps itself on first request
+docker compose up -d     # PostgreSQL 16 on port 5433; schema bootstraps itself on first request
 ```
 
-### 5a. Run the CLI
+### Running
 ```bash
-# acquire → ingest → build → project → test; writes artifact/validated/ir + surfaces into ./out
+# CLI — full pipeline (acquire → ingest → build → project → test) into ./out
 node packages/cli/bin/cn.mjs run --openapi ./samples/openapi/tasks-api.yaml
-```
 
-### 5b. Run the Studio
-```bash
-npm run studio              # next dev on http://localhost:4000
+# Studio — Next.js dev server on http://localhost:4000
+npm run studio
 ```
-
----
 
 ## Usage
 
 ### CLI (`cn`)
-Invoke through the bin launcher: `node packages/cli/bin/cn.mjs <command> …`. On macOS/Linux a shell shim is handy: `cn() { node packages/cli/bin/cn.mjs "$@"; }`. (`npm link` once gives you a global `cn`.)
+
+Call the bin launcher directly: `node packages/cli/bin/cn.mjs <command> …`. On macOS/Linux a shell shim helps — `cn() { node packages/cli/bin/cn.mjs "$@"; }` — or `npm link` once for a global `cn`.
 
 ```bash
-# Run the whole pipeline for an input (repeat input flags to do several at once)
+# Run the whole pipeline (repeat input flags to process several at once)
 cn run --openapi ./samples/openapi/tasks-api.yaml
 cn run --sdk ./fixtures/sdk-sample
 cn run --mcp ./fixtures/mcp-sample/tools.json
 
 # …or drive the stages one at a time
-cn acquire --openapi ./samples/openapi/tasks-api.yaml     # → canonical artifact
-cn ingest  --openapi ./samples/openapi/tasks-api.yaml     # → validated artifact + repair proposals
-cn build   --openapi ./samples/openapi/tasks-api.yaml -o out/   # → content-hashed IR (fails loud)
-cn project --openapi ./samples/openapi/tasks-api.yaml     # → surfaces/ (SDK · MCP · CLI · docs)
+cn acquire --openapi ./samples/openapi/tasks-api.yaml          # → canonical artifact
+cn ingest  --openapi ./samples/openapi/tasks-api.yaml          # → validated artifact + repair proposals
+cn build   --openapi ./samples/openapi/tasks-api.yaml -o out/  # → content-hashed IR (fails loud)
+cn project --openapi ./samples/openapi/tasks-api.yaml          # → surfaces/ (SDK · MCP · CLI · docs)
 
-cn <command> --help        # full flag list
+cn <command> --help            # full flag list
 ```
-> Don't use `npm run cn -- …` — npm intercepts the `--openapi`/`-o` flags. Call the bin launcher directly.
+> Don't use `npm run cn -- …` — npm intercepts the `--openapi` / `-o` flags. Call the bin launcher directly.
+
+A bare `cn run` with no flags reads the input list from `cn.config.json`.
 
 ### Studio (web app)
 1. Open `http://localhost:4000` and create an account.
-2. Choose an input (OpenAPI / GitHub / SDK / MCP), give it a **Project Name**, and save — this creates version 1.
+2. Pick an input (OpenAPI / GitHub / SDK / MCP), give it a **Project Name**, and save — this creates version 1.
 3. Each re-sync (manual or via the auto-sync watcher) records a new version with an IR diff.
-4. Open a project → **Distribute** to **host** the MCP server / CLI, **download** the CLI package, or **publish** the SDKs to npm / PyPI.
+4. Open a project → **Distribute** to host the MCP server / CLI, download the CLI package, or publish the SDKs to npm / PyPI.
 
 ### Develop
 ```bash
-npm run typecheck          # tsc --noEmit across all packages
-npm test                   # vitest
+npm run typecheck    # tsc --noEmit across all packages
+npm test             # vitest
 ```
 
----
-
 ## Project Structure
+
 ```
 API-Hub/
 │
-├── packages/                  # The Connector Network engine (npm workspaces)
-│   ├── contracts/             # Shared types: SourceRef, CanonicalArtifact, ValidatedArtifact, IR…
-│   ├── acquire/               # 4 input adapters + OpenAPI bundling + content-hash pinning
-│   ├── ingest/                # adapt · assemble · validate · repair
-│   ├── ir-core/               # stable operation IDs · build IR · canonicalize + hash
-│   ├── projection/            # generators: sdk-typescript · sdk-python · mcp · cli · docs
-│   └── cli/                   # the `cn` command (run | acquire | ingest | build | project)
+├── packages/                 # The connector engine (npm workspaces)
+│   ├── contracts/            # Shared types: SourceRef, CanonicalArtifact, ValidatedArtifact, IR…
+│   ├── acquire/              # 4 input adapters + OpenAPI bundling + content-hash pinning
+│   ├── ingest/               # adapt · assemble · validate · repair
+│   ├── ir-core/              # stable operation IDs · build IR · canonicalize + hash
+│   ├── projection/           # generators: sdk-typescript · sdk-python · mcp · cli · docs
+│   └── cli/                  # the `cn` command (run | acquire | ingest | build | project)
 │
 ├── apps/
-│   └── studio/                # Next.js 15 web app (the Studio)
-│       ├── app/               # App Router pages + API routes
-│       ├── components/        # React UI (inputs, projects, distribute, history, cli)
-│       ├── lib/               # server (db · store · hosts · publish · jwt) + client + pipeline glue
-│       └── scripts/           # DB init / import / migration scripts
+│   └── studio/               # Next.js 15 web app (the Studio)
+│       ├── app/              # App Router pages + API routes (projects, runs, host, publish…)
+│       ├── components/       # React UI (inputs, projects, distribute, history, cli, run)
+│       ├── lib/              # server (db · store · hosts · publish · jwt) + client + pipeline glue
+│       └── scripts/          # DB init / import / migration scripts
 │
-├── samples/                   # Example inputs (openapi · github · mcp · sdk-*)
-├── fixtures/                  # Test fixtures (lumen · adversarial · *-sample)
-├── docs/                      # QA / design docs
-├── docker-compose.yml         # PostgreSQL 16 for the Studio (port 5433)
-├── .env.example               # Single env template (CLI + Studio)
-├── package.json               # npm workspaces root + scripts
-└── README.md                  # Project documentation
+├── samples/                  # Example inputs (openapi · github · mcp · sdk-*)
+├── fixtures/                 # Test fixtures (lumen · adversarial · *-sample)
+├── docs/                     # QA / design docs
+├── docker-compose.yml        # PostgreSQL 16 for the Studio (port 5433)
+├── cn.config.json            # Default input list for a bare `cn run`
+├── .env.example              # Single env template (CLI + Studio)
+├── package.json              # npm workspaces root + scripts
+└── README.md
 ```
 > `out/` and `surfaces/` hold generated CLI output and are regenerable (gitignored).
 
 ---
 
-## Contributing
-
-Contributions are welcome! To contribute:
-1. Fork the repository
-2. Create a new branch:
-   ```bash
-   git checkout -b feature/your-feature
-   ```
-3. Commit your changes:
-   ```bash
-   git commit -m "Add your feature"
-   ```
-4. Push to your branch:
-   ```bash
-   git push origin feature/your-feature
-   ```
-5. Open a pull request describing your changes.
-
----
-
 ## Contact
-- **GitHub:** [DCode-v05](https://github.com/DCode-v05)
-- **Email:** denistanb05@gmail.com
+
+**Portfolio:** [Denistan](https://www.denistan.me)<br>
+**LinkedIn:** [Denistan](https://www.linkedin.com/in/denistanb)<br>
+**GitHub:** [DCode-v05](https://github.com/DCode-v05)<br>
+**LeetCode:** [Denistan_B](https://leetcode.com/u/Denistan_B)<br>
+**Email:** [denistanb05@gmail.com](mailto:denistanb05@gmail.com)
+
+Made with ❤️ by **Denistan B**
