@@ -4,6 +4,12 @@ out/
 *.tsbuildinfo
 .DS_Store
 npm-debug.log*
+*.log
+Thumbs.db
+.idea/
+.vscode/
+.venv/
+venv/
 coverage/
 # local scratch / acquisition output
 .cn-tmp/
@@ -14,6 +20,7 @@ __pycache__/
 # secrets — never commit real tokens (.env.example is the tracked template)
 .env
 .env.local
+!.env.example
 # studio local data store (users, run history, presets, session secret)
 apps/studio/.data/
 apps/studio/.next/
