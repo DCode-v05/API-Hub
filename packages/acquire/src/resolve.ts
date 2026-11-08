@@ -5,21 +5,14 @@ import { errMessage } from './errors';
 import { collectExternalRefs } from './refs';
 
 export interface BundleResult {
-  /** Self-contained OpenAPI document, or null when resolution failed. */
   document: OpenApiDocument | null;
   diagnostics: Diagnostic[];
 }
 
-/**
- * Resolve a root OpenAPI document (a file path, an http(s) URL, or an in-memory object) into one
- * self-contained document: external $refs are bundled into internal `#/...` refs so no file paths
- * or URLs remain. That bundling is what makes the artifact origin-blind.
- */
 export async function bundleOpenApi(source: string | object): Promise<BundleResult> {
   const diagnostics: Diagnostic[] = [];
   let bundled: unknown;
   try {
-    // bundle() = parse + pull external refs inline as internal refs (keeps circular refs internal).
     bundled = await SwaggerParser.bundle(source as never);
   } catch (err) {
     diagnostics.push(
@@ -36,7 +29,6 @@ export async function bundleOpenApi(source: string | object): Promise<BundleResu
   return { document: normalizeToOpenApi31(bundled, diagnostics), diagnostics };
 }
 
-/** Guarantee the minimal OpenAPI 3.1 shape the rest of the system relies on. */
 function normalizeToOpenApi31(raw: unknown, diagnostics: Diagnostic[]): OpenApiDocument {
   const doc = (raw && typeof raw === 'object' ? raw : {}) as Record<string, unknown>;
 

@@ -93,7 +93,6 @@ function analyzeSpec(text: string): SpecInfo | null {
       return { format: 'json', error: 'Invalid JSON — check for a trailing comma or unquoted key.' };
     }
   }
-  // YAML: best-effort surface read (no parser bundled on the client).
   const ver = t.match(/^\s*(openapi|swagger)\s*:\s*["']?([\d.]+)/m);
   const title = t.match(/^\s*title\s*:\s*["']?(.+?)["']?\s*$/m);
   const version = t.match(/^\s*version\s*:\s*["']?(.+?)["']?\s*$/m);
@@ -235,7 +234,6 @@ export function OpenApiWorkspace() {
           </div>
         ) : null}
 
-        {/* Live analysis for paste/upload */}
         {info ? (
           info.error ? (
             <p className="flex items-center gap-1.5 rounded-md border border-danger/25 bg-danger/5 px-3 py-2 text-xs text-danger">

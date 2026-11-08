@@ -36,7 +36,6 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   if (!Number.isInteger(version) || version <= 0) return Response.json({ error: 'A valid version is required.' }, { status: 400 });
   const kind: 'mcp' | 'cli' = body.kind === 'cli' ? 'cli' : 'mcp';
 
-  // Persist any supplied upstream config (base URL and/or token) before starting.
   if (body.baseUrl !== undefined || body.token) {
     const existing = await getHostConfig(user.id, id);
     await setHostConfig(user.id, id, { baseUrl: (body.baseUrl ?? existing.baseUrl).trim(), token: body.token });
@@ -44,7 +43,6 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
   const payload = (await getProjectVersionPayload(user.id, id, version)) as RunPayload | null;
   if (!payload?.ir && !payload?.surfaces) return Response.json({ error: 'That version has no generated surfaces.' }, { status: 400 });
-  // Re-project from the pinned IR with the current generator (guarantees the hostable http-server.mjs).
   const surfaces = payload.ir ? projectSurfaces(payload.ir) : payload.surfaces!;
 
   const cfg = await getHostConfig(user.id, id);

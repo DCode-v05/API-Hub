@@ -17,11 +17,8 @@ export interface PlannedOp {
   id: string;
   httpMethod: string;
   path: string;
-  /** SDK/CLI verb, e.g. "create". */
   methodName: string;
-  /** Deduplicated TS params interface name, e.g. "CreateProjectParams". */
   paramsType: string;
-  /** MCP tool name, e.g. "create_project". */
   tool: string;
   summary?: string;
   description?: string;
@@ -31,19 +28,14 @@ export interface PlannedOp {
   queryParams: PlannedParam[];
   headerParams: PlannedParam[];
   bodyParams: PlannedParam[];
-  /** Success (2xx) return model name, if any. */
   returnRef?: string;
   successStatus?: string;
 }
 
 export interface PlannedResource {
-  /** Raw IR resource name. */
   name: string;
-  /** SDK accessor, e.g. client.<prop>. */
   prop: string;
-  /** PascalCase class base, e.g. Projects → ProjectsResource. */
   className: string;
-  /** CLI command word, e.g. "projects". */
   command: string;
   ops: PlannedOp[];
 }
@@ -59,20 +51,14 @@ export interface ProjectionPlan {
   title: string;
   apiVersion: string;
   server: string;
-  /** kebab API slug, e.g. "lumen-api". */
   slug: string;
-  /** SDK/CLI package base name. */
   packageName: string;
-  /** Python distribution + importable module names. */
   pyDist: string;
   pyModule: string;
-  /** CLI binary name, e.g. "lumen". */
   binName: string;
-  /** Default auth scheme across operations. */
   auth: string;
   resources: PlannedResource[];
   models: PlannedModel[];
-  /** Raw schema name → deduplicated generated class/interface name (for $ref resolution). */
   modelClassByName: Map<string, string>;
 }
 
@@ -116,8 +102,6 @@ export function planProjection(ir: Ir, options: PlanOptions = {}): ProjectionPla
 
   const auth = ir.operations.find((o) => o.auth && o.auth !== 'none')?.auth ?? 'none';
 
-  // Deduplicate generated names so distinct schemas/resources that PascalCase-collide don't
-  // produce duplicate definitions (TS2300 / silent Python shadowing) or duplicate file paths.
   const usedResource = new Set<string>();
   for (const res of resources) {
     const baseClass = `${pascalIdent(res.name)}Resource`;

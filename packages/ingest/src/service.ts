@@ -5,11 +5,6 @@ import { assemble } from './assemble';
 import { validateSpec } from './validate';
 import { proposeRepairs } from './repair';
 
-/**
- * Ingestion: Canonical artifact(s) → Validated artifact. Runs Adapt → Assemble → Validate +
- * Repair, accumulating diagnostics from acquisition onward. `valid` is false if any stage produced
- * a blocking error (including acquisition), so a downstream IR build can refuse to run.
- */
 export function ingest(artifacts: CanonicalArtifact[]): ValidatedArtifact {
   if (artifacts.length === 0) {
     throw new Error('ingest requires at least one canonical artifact');

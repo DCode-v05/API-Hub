@@ -4,8 +4,6 @@ import { tryLockProject, unlockProject } from '@/lib/server/project-locks';
 import { getCurrentUser } from '@/lib/server/session';
 import { getProject } from '@/lib/server/store';
 
-// Re-runs the project's source through the pipeline and (on change) appends a version. Streams the
-// live funnel over SSE, exactly like /api/run, plus a final {t:'version'} frame with the outcome.
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 export const maxDuration = 120;
@@ -37,14 +35,12 @@ export async function POST(_req: Request, { params }: { params: Promise<{ id: st
         try {
           controller.enqueue(encoder.encode(`data: ${JSON.stringify(event)}\n\n`));
         } catch {
-          /* stream closed */
         }
       };
       try {
         const outcome = await checkProject(project, { trigger: 'manual', emit: send, signal: ac.signal });
         send({ t: 'version', outcome });
       } catch (e) {
-        // checkProject never throws, but guard the stream regardless.
         send({ t: 'error', stage: 'input', message: e instanceof Error ? e.message : String(e) });
         send({ t: 'done', ok: false, ms: 0 });
       } finally {

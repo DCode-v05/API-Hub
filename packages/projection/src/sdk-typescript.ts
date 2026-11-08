@@ -10,7 +10,6 @@ function tsTypeOf(plan: ProjectionPlan, t: { type: string; ref?: string }): stri
   return tsType(t);
 }
 
-/** Project the IR into an installable TypeScript SDK package. */
 export function generateTypeScriptSdk(plan: ProjectionPlan): GeneratedFile[] {
   const files: GeneratedFile[] = [
     { path: 'package.json', content: packageJson(plan) },

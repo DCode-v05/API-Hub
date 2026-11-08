@@ -50,7 +50,6 @@ body {
   font-variation-settings: 'opsz' 32;
 }
 
-/* Thin, subtle scrollbars (Vercel-like). */
 ::-webkit-scrollbar {
   width: 9px;
   height: 9px;

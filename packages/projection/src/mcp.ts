@@ -20,12 +20,6 @@ interface ToolDef {
   _http: { method: string; path: string; query: string[]; body: string[]; header: string[] };
 }
 
-/**
- * Project the IR into a production MCP server: a tool per operation, with accurate JSON-Schema
- * inputs (referenced models resolved into `$defs`, recursion handled by `$ref`) and behavioural
- * annotations. Ships both transports — stdio (`server.mjs`) and a hostable Streamable-HTTP server
- * (`http-server.mjs` + `Dockerfile`) — plus a `tools.json` manifest. Zero runtime dependencies.
- */
 export function generateMcpServer(plan: ProjectionPlan): GeneratedFile[] {
   const schemas = (plan.ir.schemas ?? {}) as Record<string, unknown>;
   const tools: ToolDef[] = plan.resources
@@ -59,11 +53,6 @@ export function generateMcpServer(plan: ProjectionPlan): GeneratedFile[] {
   ];
 }
 
-/**
- * MCP behavioural hints (per the tool-annotations spec), derived from the HTTP verb so clients can
- * reason about safety: GET/HEAD are read-only; DELETE/PUT/PATCH are destructive; everything that
- * hits a remote API is open-world.
- */
 function annotationsFor(op: PlannedOp): ToolAnnotations {
   const m = op.httpMethod.toUpperCase();
   const read = m === 'GET' || m === 'HEAD';
@@ -76,12 +65,6 @@ function annotationsFor(op: PlannedOp): ToolAnnotations {
   };
 }
 
-/**
- * A tool's input as a self-contained JSON Schema. Object-typed params that reference a model emit
- * `{$ref:'#/$defs/<Model>'}`, and the transitive closure of referenced models is embedded under
- * `$defs` (with internal `#/components/schemas/*` refs rewritten to `#/$defs/*`). Recursive schemas
- * resolve naturally through the `$ref` cycle rather than being flattened to `{type:'object'}`.
- */
 function inputSchema(op: PlannedOp, schemas: Record<string, unknown>): Record<string, unknown> {
   const properties: Record<string, unknown> = {};
   const required: string[] = [];
@@ -121,7 +104,6 @@ function scalarSchema(type: string): Record<string, unknown> {
   }
 }
 
-/** BFS the referenced models into a `$defs` map (key-sorted for determinism), rewriting refs. */
 function buildDefs(roots: string[], schemas: Record<string, unknown>): Record<string, unknown> {
   const defs: Record<string, unknown> = {};
   const seen = new Set<string>();
@@ -139,7 +121,6 @@ function buildDefs(roots: string[], schemas: Record<string, unknown>): Record<st
   return sortKeys(defs) as Record<string, unknown>;
 }
 
-/** Deep-clone a schema, rewriting `#/components/schemas/X` → `#/$defs/X` and collecting each X. */
 function rewriteRefs(node: unknown, found: string[]): unknown {
   if (Array.isArray(node)) return node.map((n) => rewriteRefs(n, found));
   if (isObject(node)) {
@@ -224,7 +205,6 @@ function dockerfile(): string {
   );
 }
 
-/** A hostable Streamable-HTTP MCP server (POST /mcp + GET /health), zero dependencies. */
 function httpServerMjs(plan: ProjectionPlan, tools: ToolDef[]): string {
   return `#!/usr/bin/env node
 // ${DO_NOT_EDIT}

@@ -1,13 +1,10 @@
-/** Client for the Sample API. */
 export class ProjectsClient {
   constructor(private readonly token: string) {}
 
-  /** Create a new design project in a team. Returns the project id. */
   create(name: string, teamId: string, template?: string): Promise<Project> {
     return request('POST', '/projects', { name, teamId, template });
   }
 
-  /** List projects belonging to a team. */
   list(teamId: string): Promise<Project[]> {
     return request('GET', '/projects', { teamId });
   }

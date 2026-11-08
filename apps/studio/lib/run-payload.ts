@@ -3,7 +3,6 @@ import type { DiagnosticDTO, ProposalDTO, StageSourceKind, SurfaceDTO, TestResul
 import type { RunMeta } from './records';
 import type { RunState } from './state';
 
-/** The full record persisted per run (runs/<id>.json), mirrored back to the client for replay. */
 export interface RunPayload {
   meta: RunMeta;
   request?: unknown;
@@ -24,7 +23,6 @@ export interface RunPayload {
   error?: { stage: string; message: string };
 }
 
-/** Rebuild a finished RunState from a stored payload, so the live RunResults UI can replay it. */
 export function payloadToState(p: RunPayload): RunState {
   return {
     status: 'done',

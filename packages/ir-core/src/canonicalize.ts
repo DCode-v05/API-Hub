@@ -1,4 +1,3 @@
-/** Deterministic JSON: object keys sorted recursively so the IR hash is stable across key order. */
 export function canonicalJson(value: unknown): string {
   return JSON.stringify(sortKeys(value));
 }

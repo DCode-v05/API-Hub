@@ -1,9 +1,3 @@
-/**
- * Find every `$ref` that points outside this document (anything not starting with "#").
- * Shared by the OpenAPI bundler (resolve.ts) and the reverse-derived shape builder
- * (openapi-shape.ts) so origin-blindness is enforced at a single point, regardless of how the
- * canonical document was produced.
- */
 export function collectExternalRefs(root: unknown): string[] {
   const refs: string[] = [];
   const seen = new Set<object>();

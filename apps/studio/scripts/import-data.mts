@@ -1,7 +1,3 @@
-// One-shot migration: import a legacy file store (apps/studio/.data) into PostgreSQL.
-//   npm run studio:db:import
-// Idempotent (ON CONFLICT DO NOTHING). Also imports the old signing secret so existing sessions
-// stay valid and saved PATs remain decryptable. Set STUDIO_DATA_DIR to import from elsewhere.
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { loadStudioEnv } from '../lib/server/env';
@@ -29,7 +25,6 @@ const pool = getPool();
 const db = JSON.parse(readFileSync(dbPath, 'utf8')) as LegacyDB;
 const counts = { users: 0, presets: 0, pats: 0, runs: 0 };
 
-// Preserve the old signing secret (unless STUDIO_SECRET is set) so sessions/PATs keep working.
 const secretFile = join(dataDir, 'secret');
 if (!process.env['STUDIO_SECRET'] && existsSync(secretFile)) {
   const b64 = readFileSync(secretFile).toString('base64');

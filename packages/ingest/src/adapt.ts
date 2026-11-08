@@ -7,11 +7,6 @@ export interface AdaptResult {
   diagnostics: Diagnostic[];
 }
 
-/**
- * Adapt removes the FORMAT axis: collapse any inbound version onto the one OpenAPI-3.1 target
- * shape. Pragmatic coverage: 3.1 passes through, 3.0 is normalized (nullable → type arrays,
- * etc.), and Swagger 2.0 is upgraded best-effort with diagnostics flagging anything uncertain.
- */
 export function adapt(input: OpenApiDocument): AdaptResult {
   const diagnostics: Diagnostic[] = [];
   let doc = structuredClone(input) as Record<string, unknown>;
@@ -36,7 +31,6 @@ export function adapt(input: OpenApiDocument): AdaptResult {
   return { document: doc as OpenApiDocument, diagnostics };
 }
 
-/** 3.0 `nullable: true` → 3.1 `type: [..., "null"]`; drop the keyword either way. */
 function normalizeNullable(root: unknown): void {
   walkNodes(root, (node) => {
     if (node['nullable'] === true) {
@@ -57,14 +51,12 @@ function rewriteRefs(root: unknown, from: string, to: string): void {
   });
 }
 
-/** Best-effort Swagger 2.0 → OpenAPI 3.x for the common shapes; flag the uncertain bits. */
 function upgradeSwagger2(doc: Record<string, unknown>, diagnostics: Diagnostic[]): Record<string, unknown> {
   diagnostics.push(
     warn('ing.adapt.swagger2', 'best-effort upgrade Swagger 2.0 → OpenAPI 3.1; verify bodies/responses'),
   );
   const out: Record<string, unknown> = { ...doc };
 
-  // host + basePath + schemes → servers
   const host = typeof doc['host'] === 'string' ? doc['host'] : '';
   const basePath = typeof doc['basePath'] === 'string' ? doc['basePath'] : '';
   const schemes = Array.isArray(doc['schemes']) ? (doc['schemes'] as string[]) : ['https'];

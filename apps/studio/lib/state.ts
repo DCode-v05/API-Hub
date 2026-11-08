@@ -96,8 +96,6 @@ export function reduce(state: RunState, e: RunEvent): RunState {
             : { ...state.stages, [e.stage]: { ...state.stages[e.stage], status: 'error' } },
       };
     case 'done': {
-      // On a terminal failure (e.g. the stream dropped mid-stage), no stage may stay 'running'
-      // — demote any in-flight stage to 'error' so the UI doesn't spin forever.
       const stages = e.ok
         ? state.stages
         : (Object.fromEntries(

@@ -10,9 +10,6 @@ import type {
   RunMeta,
 } from '../records';
 
-/** Thin client wrappers over the studio's REST endpoints. All are best-effort and never throw. */
-
-/** Fired after a project is created/updated/deleted/synced so the sidebar + dashboard refresh. */
 export const PROJECTS_CHANGED = 'cn:projects-changed';
 export function notifyProjectsChanged(): void {
   if (typeof window !== 'undefined') window.dispatchEvent(new Event(PROJECTS_CHANGED));
@@ -92,7 +89,6 @@ export async function deleteProject(id: string): Promise<boolean> {
   }
 }
 
-/** The full stored payload for one version — replayed through payloadToState + RunResults. */
 export async function fetchProjectVersion(id: string, version: number): Promise<unknown | null> {
   try {
     const res = await fetch(`/api/projects/${id}/versions/${version}`, { cache: 'no-store' });
@@ -175,7 +171,6 @@ export function cliPackUrl(projectId: string, version: number): string {
   return `/api/projects/${projectId}/host/cli/pack?version=${version}`;
 }
 
-/** Invoke a command on a hosted CLI service (via the studio proxy → the host's POST /run). */
 export async function runCliCommand(
   projectId: string,
   deploymentId: string,

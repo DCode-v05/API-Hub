@@ -1,4 +1,3 @@
-/** Compact relative time, e.g. "just now", "3m ago", "2h ago", "5d ago", else a date. */
 export function timeAgo(iso: string): string {
   const then = new Date(iso).getTime();
   if (Number.isNaN(then)) return '';

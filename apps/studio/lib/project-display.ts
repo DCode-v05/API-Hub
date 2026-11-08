@@ -3,8 +3,6 @@ import { FileJson, Github, Package, Plug } from 'lucide-react';
 import type { RunRequest, StageSourceKind } from './events';
 import type { DiffSummary, ProjectStatus } from './records';
 
-/** Shared presentation helpers for the Projects UI (dashboard, detail, sidebar). */
-
 type Icon = ComponentType<{ className?: string }>;
 
 export const KIND_ICON: Record<StageSourceKind, Icon> = {
@@ -21,7 +19,6 @@ export const KIND_LABEL: Record<StageSourceKind, string> = {
   mcp: 'MCP',
 };
 
-/** A short, human source descriptor for a saved project's input. */
 export function describeRequest(req: RunRequest): string {
   switch (req.kind) {
     case 'github':
@@ -37,7 +34,6 @@ export function describeRequest(req: RunRequest): string {
   }
 }
 
-/** Compact watch-interval label, e.g. "15m", "1h", "1d". */
 export function formatInterval(sec: number): string {
   if (sec % 86400 === 0) return `${sec / 86400}d`;
   if (sec % 3600 === 0) return `${sec / 3600}h`;

@@ -7,10 +7,6 @@ import { fetchPats, removePat, savePat } from '@/lib/client/api';
 import { cx } from '@/lib/ui';
 import { Button, Input, Label } from '@/components/ui';
 
-/**
- * GitHub PAT input + vault. The user either selects a saved token (referenced by id; the token
- * itself never returns to the browser) or types a new one — which can be saved under a name.
- */
 export function PatField({
   patId,
   pat,
@@ -29,7 +25,6 @@ export function PatField({
     void refresh();
   }, [refresh]);
 
-  // If the selected PAT was deleted elsewhere, fall back to the "new token" entry.
   const known = patId && pats ? pats.some((p) => p.id === patId) : true;
   React.useEffect(() => {
     if (patId && pats && !pats.some((p) => p.id === patId)) onChange({ patId: undefined, pat });
@@ -46,7 +41,7 @@ export function PatField({
     if (created) {
       setName('');
       await refresh();
-      onChange({ patId: created.id, pat: '' }); // switch to the saved token; drop the raw value
+      onChange({ patId: created.id, pat: '' });
     }
   }
 

@@ -1,13 +1,6 @@
 import { randomBytes } from 'node:crypto';
 import { Pool, type QueryResultRow } from 'pg';
 
-/**
- * PostgreSQL access layer. A single pooled connection (kept on globalThis so dev hot-reload doesn't
- * leak pools), an idempotent schema bootstrap run once per process, and the session-signing secret
- * stored in the DB (env-overridable). All store functions go through `query()`, which guarantees
- * the schema + secret are ready before the first statement.
- */
-
 const SCHEMA_SQL = `
 CREATE TABLE IF NOT EXISTS app_meta (
   key   text PRIMARY KEY,
@@ -170,8 +163,6 @@ const globalForPool = globalThis as unknown as { __cnPool?: Pool };
 function sslConfig(): { rejectUnauthorized: boolean } | undefined {
   const url = process.env['DATABASE_URL'] ?? '';
   const want = process.env['DATABASE_SSL'] === 'require' || process.env['PGSSLMODE'] === 'require' || /[?&]sslmode=require/.test(url);
-  // Managed Postgres often presents a cert chain the host doesn't trust by default; allow opting out
-  // of verification (the common case for hosted DBs) while still encrypting in transit.
   return want ? { rejectUnauthorized: process.env['DATABASE_SSL_REJECT_UNAUTHORIZED'] === '1' } : undefined;
 }
 
@@ -196,15 +187,14 @@ let cachedSecret: Buffer | null = null;
 
 async function bootstrap(): Promise<void> {
   const pool = getPool();
-  await pool.query(SCHEMA_SQL); // idempotent — safe to run on every boot
+  await pool.query(SCHEMA_SQL);
   await loadSecret(pool);
 }
 
-/** Ensure the schema exists and the signing secret is loaded. Memoized; retried if it fails. */
 export function ensureReady(): Promise<void> {
   if (!ready) {
     ready = bootstrap().catch((e) => {
-      ready = null; // allow a later request to retry (e.g. DB came up after the app)
+      ready = null;
       throw e;
     });
   }
@@ -227,14 +217,12 @@ async function loadSecret(pool: Pool): Promise<void> {
   cachedSecret = Buffer.from(row.rows[0]!.value, 'base64');
 }
 
-/** Synchronous accessor for the (already-loaded) signing secret. Call ensureReady() first. */
 export function getSecret(): Buffer {
   if (process.env['STUDIO_SECRET']) return Buffer.from(process.env['STUDIO_SECRET'], 'utf8');
   if (!cachedSecret) throw new Error('Session secret not loaded — call ensureReady() first.');
   return cachedSecret;
 }
 
-/** Run a query, guaranteeing the schema + secret are ready first. */
 export async function query<T extends QueryResultRow = QueryResultRow>(
   text: string,
   params: unknown[] = [],
@@ -244,7 +232,6 @@ export async function query<T extends QueryResultRow = QueryResultRow>(
   return { rows: res.rows, rowCount: res.rowCount ?? 0 };
 }
 
-/** Close the pool (used by one-shot scripts so the process can exit). */
 export async function closePool(): Promise<void> {
   if (globalForPool.__cnPool) {
     await globalForPool.__cnPool.end();

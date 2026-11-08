@@ -10,12 +10,10 @@ import { OutputFiles } from '@/components/cli/OutputFiles';
 
 type View = 'terminal' | 'output' | 'help';
 
-/** Right-column CLI output: the live terminal, the files cn produced, and the full `cn` reference. */
 export function CliOutput({ cli }: { cli: InputCli }) {
   const [view, setView] = React.useState<View>('terminal');
   const hasOutput = !!cli.artifacts && cli.artifacts.length > 0;
 
-  // While a run is starting, keep the terminal in view; jump to Output once files land.
   React.useEffect(() => {
     if (cli.queued) setView('terminal');
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -23,7 +21,6 @@ export function CliOutput({ cli }: { cli: InputCli }) {
   React.useEffect(() => {
     if (hasOutput) setView('output');
   }, [cli.artifacts, hasOutput]);
-  // On Clear, drop back to the (now empty) terminal.
   React.useEffect(() => {
     if (cli.clearToken) setView('terminal');
   }, [cli.clearToken]);
@@ -56,7 +53,6 @@ export function CliOutput({ cli }: { cli: InputCli }) {
         ))}
       </div>
 
-      {/* Terminal stays mounted so its session survives switching tabs. */}
       <div className={cx(view === 'terminal' ? 'block' : 'hidden')}>
         <Terminal queued={cli.queued} insert={cli.inserted} onArtifacts={cli.setArtifacts} clearToken={cli.clearToken} auth={cli.auth} />
       </div>

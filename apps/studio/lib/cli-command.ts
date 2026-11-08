@@ -1,26 +1,20 @@
 import type { RunRequest } from './events';
 
-/** Quote an argument the way a POSIX-ish shell needs (for display/copy only). */
 function quote(arg: string): string {
   if (arg === '') return '""';
   return /[\s"'`$&|;<>(){}\\]/.test(arg) ? `"${arg.replace(/(["\\$`])/g, '\\$1')}"` : arg;
 }
 
-/** Render an argv (without the leading `cn`) as a copy-pasteable `cn …` command string. */
 export function cnDisplay(argv: string[]): string {
   return ['cn', ...argv].map(quote).join(' ');
 }
 
 export interface CliCommand {
-  /** argv without the leading `cn` (what the in-studio terminal spawns). */
   argv: string[];
-  /** Copy-pasteable command string, e.g. `cn run --openapi ./spec.yaml`. */
   display: string;
-  /** Set when the form can't be expressed verbatim on the CLI (e.g. pasted content). */
   note?: string;
 }
 
-/** Translate a Studio run request into the equivalent `cn` command line. */
 export function toCliCommand(req: RunRequest, command: 'run' | 'acquire' | 'ingest' | 'build' | 'project' = 'run'): CliCommand {
   const argv: string[] = [command];
   let note: string | undefined;

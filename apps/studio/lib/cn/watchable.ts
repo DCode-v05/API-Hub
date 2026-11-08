@@ -1,19 +1,11 @@
 import type { RunRequest } from '../events';
 
-/**
- * A project can only be created from a source the pipeline can re-fetch on its own — a GitHub repo
- * (via a saved PAT), a URL, or a local file path. Pasted/typed-inline specs and stdio MCP commands
- * have no durable source to watch, so they're rejected here. This is the single source of truth used
- * by BOTH the create-project API (authoritative) and the "Save as Project" UI (button + hint).
- */
-
 export type Watchability = { ok: true } | { ok: false; reason: string };
 
 export function isWatchable(req: RunRequest): Watchability {
   switch (req.kind) {
     case 'github': {
       if (!req.repo?.trim() || !req.repo.includes('/')) return { ok: false, reason: 'Enter a GitHub repo as "owner/repo".' };
-      // Projects re-acquire headlessly, so we need a *saved* PAT — typed-once tokens are never stored.
       if (!req.patId) {
         return { ok: false, reason: 'Select a saved PAT — projects re-fetch on their own, so a stored token is required (typed tokens aren’t saved).' };
       }

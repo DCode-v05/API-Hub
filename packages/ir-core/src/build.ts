@@ -6,11 +6,6 @@ import { irHash } from './hash';
 
 export const IR_VERSION = 'cn-ir/1';
 
-/**
- * Build the normalized, content-hashed IR from a validated artifact. Because every input type was
- * normalized to one OpenAPI-3.1 shape upstream, this builder is uniform regardless of origin —
- * the same operation produces the same IR node whether it came from OpenAPI, GitHub, an SDK, or MCP.
- */
 export function buildIr(validated: ValidatedArtifact): Ir {
   const doc = validated.document as unknown as Record<string, unknown>;
   const paths = isObject(doc['paths']) ? doc['paths'] : {};
@@ -25,17 +20,12 @@ export function buildIr(validated: ValidatedArtifact): Ir {
       operations.push(buildOperation(doc, path, method, op, pathParams, validated));
     }
   }
-  // Deterministic order, then disambiguate any synthesized-id collisions (distinct paths can
-  // slugify to the same id). Two operations must never share an id, or diffs/overrides bound to it
-  // become ambiguous.
   operations.sort(
     (a, b) => a.id.localeCompare(b.id) || a.method.localeCompare(b.method) || a.path.localeCompare(b.path),
   );
   const idDiagnostics = dedupeOperationIds(operations);
 
   const info = isObject(doc['info']) ? doc['info'] : {};
-  // The hashed `core` carries provenance-free operations — provenance identifies the source, not
-  // the IR content, so it must not affect the hash.
   const core = {
     irVersion: IR_VERSION,
     title: typeof info['title'] === 'string' ? info['title'] : 'untitled',
@@ -65,7 +55,6 @@ export function buildIr(validated: ValidatedArtifact): Ir {
   };
 }
 
-/** Ensure operation ids are unique; deterministically suffix collisions and report them. */
 function dedupeOperationIds(operations: IrOperation[]): Diagnostic[] {
   const diagnostics: Diagnostic[] = [];
   const used = new Set<string>();

@@ -12,7 +12,6 @@ interface CommandDef {
   flags: { flag: string; wire: string; in: string; required: boolean; type: string }[];
 }
 
-/** Project the IR into a runnable CLI (`<bin> <resource> <verb> --flags`). */
 export function generateCli(plan: ProjectionPlan): GeneratedFile[] {
   const commands: CommandDef[] = [];
   for (const res of plan.resources) {

@@ -9,7 +9,6 @@ const MAX_STDIO_BYTES = 32 * 1024 * 1024;
 export interface McpTool {
   name: string;
   description?: string;
-  /** JSON Schema for the tool's arguments — maps cleanest of all into the canonical shape. */
   inputSchema?: Record<string, unknown>;
 }
 
@@ -18,7 +17,6 @@ export interface McpManifest {
   tools: McpTool[];
 }
 
-/** Load an MCP tools manifest from a local file path or an http(s) URL. */
 export async function loadMcpManifest(target: string): Promise<McpManifest> {
   let text: string;
   if (/^https?:\/\//i.test(target)) {
@@ -82,11 +80,6 @@ interface JsonRpcMessage {
   error?: unknown;
 }
 
-/**
- * Introspect a live stdio MCP server: spawn it, do the JSON-RPC `initialize` handshake, send the
- * `notifications/initialized` notice, then call `tools/list`. MCP's stdio transport is
- * newline-delimited JSON. Pragmatic minimal client — enough to read a tool catalog.
- */
 export function introspectStdioServer(command: string, timeoutMs = 10_000): Promise<McpManifest> {
   return new Promise<McpManifest>((resolve, reject) => {
     const child = spawn(command, { shell: true, windowsHide: true });
@@ -100,7 +93,6 @@ export function introspectStdioServer(command: string, timeoutMs = 10_000): Prom
       try {
         child.kill();
       } catch {
-        /* ignore */
       }
       if (err) reject(err);
       else resolve(value as McpManifest);
@@ -123,8 +115,6 @@ export function introspectStdioServer(command: string, timeoutMs = 10_000): Prom
 
     child.stdout.on('data', (chunk: Buffer) => {
       buffer += chunk.toString('utf8');
-      // Cap the buffer so a server that streams without newlines can't exhaust memory before the
-      // wall-clock timeout fires.
       if (buffer.length > MAX_STDIO_BYTES) {
         finish(new Error('MCP server response exceeded size limit'));
         return;

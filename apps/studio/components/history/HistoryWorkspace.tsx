@@ -54,7 +54,6 @@ export function HistoryWorkspace() {
     setLoading(false);
   }, []);
 
-  // Open the deep-linked run once.
   const opened = React.useRef(false);
   React.useEffect(() => {
     if (deepLink && !opened.current) {

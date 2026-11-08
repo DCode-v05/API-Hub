@@ -10,7 +10,6 @@ export type CliEvent =
   | { t: 'artifacts'; files: CliFile[]; truncated?: boolean }
   | { t: 'exit'; code: number };
 
-/** Split a command line into argv, honoring single/double quotes. No shell expansion. */
 export function tokenize(input: string): string[] {
   const out: string[] = [];
   let cur = '';
@@ -43,8 +42,6 @@ export function tokenize(input: string): string[] {
   return out;
 }
 
-/** POST argv to /api/cli and stream the child's output events to onEvent. `auth` carries the form's
- * GitHub PAT (typed token or saved id) so the spawned cn uses it instead of the repo .env. */
 export async function runCliStream(
   args: string[],
   onEvent: (e: CliEvent) => void,
@@ -84,7 +81,6 @@ export async function runCliStream(
     try {
       onEvent(JSON.parse(line.slice(5).trim()) as CliEvent);
     } catch {
-      /* ignore malformed frame */
     }
   };
 

@@ -20,7 +20,6 @@ const QUICK: { label: string; cmd: string }[] = [
 
 type Auth = { pat?: string; patId?: string };
 
-// A multi-step, in-terminal prompt for a missing GitHub PAT (mimics git/sudo password prompts).
 type PatStep =
   | { kind: 'choose'; args: string[]; pats: PatDTO[] }
   | { kind: 'token'; args: string[] }
@@ -54,7 +53,6 @@ export function Terminal({
   const inFlight = React.useRef(false);
   const authRef = React.useRef(auth);
   authRef.current = auth;
-  // Token entered this session so further --github commands don't re-prompt.
   const sessionAuthRef = React.useRef<Auth | null>(null);
 
   const append = React.useCallback((e: Entry) => {
@@ -76,7 +74,6 @@ export function Terminal({
       const formAuth = authRef.current;
       const resolved = authOverride ?? (hasPat(formAuth) ? formAuth : null) ?? sessionAuthRef.current ?? undefined;
 
-      // A --github command with no token (and no inline --pat) → start an in-terminal PAT prompt.
       if (args.includes('--github') && !args.includes('--pat') && !hasPat(resolved)) {
         append({ kind: 'err', text: '\ncn: a GitHub personal access token is required for this command.\n' });
         const pats = await fetchPats();
@@ -130,7 +127,6 @@ export function Terminal({
     [runArgs],
   );
 
-  // Answer the current in-terminal PAT prompt step.
   const answerPat = React.useCallback(
     async (raw: string) => {
       const step = pat;
@@ -192,7 +188,6 @@ export function Terminal({
     [pat, append, runWith],
   );
 
-  // Programmatic commands from the builder / a deep link.
   React.useEffect(() => {
     if (queued && queued.token > 0 && queued.args.length > 0) {
       setInput(queued.args.join(' '));
@@ -201,7 +196,6 @@ export function Terminal({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [queued?.token]);
 
-  // Builder "Insert" — drop the command into the prompt, editable, without running.
   React.useEffect(() => {
     if (insert && insert.token > 0) {
       setInput(insert.text);
@@ -210,7 +204,6 @@ export function Terminal({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [insert?.token]);
 
-  // External "Clear" — reset scrollback, any in-progress prompt, and the session token.
   React.useEffect(() => {
     if (clearToken && clearToken > 0) {
       setEntries([WELCOME]);

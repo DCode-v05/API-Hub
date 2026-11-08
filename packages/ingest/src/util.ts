@@ -17,10 +17,6 @@ export function isObject(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === 'object' && !Array.isArray(value);
 }
 
-/**
- * Visit every object node in a JSON value, iteratively (explicit stack) so a pathologically deep
- * but legal document can't overflow the call stack. A `seen` set guards true object cycles.
- */
 export function walkNodes(root: unknown, visit: (node: Record<string, unknown>) => void): void {
   const seen = new Set<object>();
   const stack: unknown[] = [root];
@@ -39,7 +35,6 @@ export function walkNodes(root: unknown, visit: (node: Record<string, unknown>) 
   }
 }
 
-/** Collect every $ref pointing outside the document (not starting with "#"). */
 export function collectExternalRefs(root: unknown): string[] {
   const refs: string[] = [];
   walkNodes(root, (obj) => {
@@ -49,7 +44,6 @@ export function collectExternalRefs(root: unknown): string[] {
   return refs;
 }
 
-/** Collect every internal $ref ("#/...") in the document. */
 export function collectInternalRefs(root: unknown): string[] {
   const refs: string[] = [];
   walkNodes(root, (obj) => {
@@ -63,7 +57,6 @@ function decodePointer(segment: string): string {
   return segment.replace(/~1/g, '/').replace(/~0/g, '~');
 }
 
-/** Resolve a local JSON Pointer ("#/a/b/0") against the root. Returns undefined if absent. */
 export function resolvePointer(root: unknown, ref: string): unknown {
   if (!ref.startsWith('#')) return undefined;
   const parts = ref.slice(1).split('/').filter((p) => p.length > 0).map(decodePointer);
@@ -72,7 +65,6 @@ export function resolvePointer(root: unknown, ref: string): unknown {
     if (Array.isArray(current)) {
       current = current[Number(part)];
     } else if (isObject(current)) {
-      // Own-property only: a $ref like "#/.../constructor" must NOT resolve to Object.prototype.
       if (!Object.prototype.hasOwnProperty.call(current, part)) return undefined;
       current = current[part];
     } else {
@@ -88,7 +80,6 @@ export function refName(ref: string): string {
   return i >= 0 ? ref.slice(i + 1) : ref;
 }
 
-/** Normalize a JSON-Schema-ish node to a single scalar type name used across the IR. */
 export function schemaType(schema: unknown): string {
   if (!isObject(schema)) return 'unknown';
   if (typeof schema['$ref'] === 'string') return refName(schema['$ref'] as string);

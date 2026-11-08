@@ -16,11 +16,6 @@ const TEST_RE = /\.(test|spec)\.(ts|mts|cts|py)$/;
 const MAX_SDK_FILE_BYTES = 2 * 1024 * 1024;
 const MAX_SDK_FILES = 2000;
 
-/**
- * Input 3: an existing SDK, reverse-derived by introspection. If the SDK ships its own OpenAPI
- * spec we use that (declared, high fidelity); otherwise we introspect TS/Python signatures into
- * an inferred, lower-trust contract.
- */
 export function createSdkAdapter(): SourceAdapter<SdkSource> {
   return {
     name: 'sdk',
@@ -39,7 +34,6 @@ export function createSdkAdapter(): SourceAdapter<SdkSource> {
         });
       }
 
-      // 1) An embedded spec is the highest-fidelity source — prefer it over introspection.
       const embedded = findOpenApiSpecs(source.path, 3);
       if (embedded.length > 0) {
         diagnostics.push(
@@ -48,9 +42,6 @@ export function createSdkAdapter(): SourceAdapter<SdkSource> {
         const result = await bundleOpenApi(embedded[0]!);
         diagnostics.push(...result.diagnostics);
         const document = result.document ?? emptyOpenApiDoc();
-        // Still an SDK input, so the artifact stays in the reverse-derived (inferred) trust tier;
-        // the embedded-spec note records the higher fidelity without contradicting the
-        // "SDK/MCP ⇒ inferred" guarantee.
         return buildArtifact({
           type: 'sdk',
           document,
@@ -59,7 +50,6 @@ export function createSdkAdapter(): SourceAdapter<SdkSource> {
         });
       }
 
-      // 2) Reverse-derive from source.
       const language = source.language ?? detectLanguage(source.path);
       if (!language) {
         diagnostics.push(

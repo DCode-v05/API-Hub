@@ -1,14 +1,3 @@
-/**
- * Conversion QA — the automated correctness gate.
- *
- * For every bundled fixture (OpenAPI · SDK-TS · SDK-Py · MCP) it runs the full pipeline
- * (acquire → ingest → build → project) and a suite of deterministic test cases: spec validity,
- * IR integrity, surface structure, operation coverage, Pass^k determinism, and a lossless
- * round-trip. Prints a green-tick / red-cross report and exits non-zero on any failure, so CI
- * fails the moment a conversion regresses.
- *
- *   npm run qa
- */
 import { createHash } from 'node:crypto';
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -87,7 +76,7 @@ async function roundTrip(proj: Projection, src: Ir): Promise<{ via: string; sour
     if (!v.valid) return { via, source: src.operations.length, rederived: 0, lossless: false };
     const ir2 = buildIr(v);
     return { via, source: src.operations.length, rederived: ir2.operations.length, lossless: ir2.operations.length >= src.operations.length };
-  } finally { if (dir) try { rmSync(dir, { recursive: true, force: true }); } catch { /* */ } }
+  } finally { if (dir) try { rmSync(dir, { recursive: true, force: true }); } catch {  } }
 }
 
 async function main(): Promise<void> {

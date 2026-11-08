@@ -18,12 +18,6 @@ import type {
 import type { RunRequest, StageSourceKind } from '../events';
 import { ensureReady, getPool, getSecret, query } from './db';
 
-/**
- * The data store, backed by PostgreSQL (see ./db.ts). These are the only entry points the rest of
- * the app uses; reads return promises now. PAT tokens are encrypted at rest under the instance
- * secret; everything else is plain columns / JSONB.
- */
-
 export interface User {
   id: string;
   email: string;
@@ -34,7 +28,7 @@ export interface User {
   createdAt: string;
 }
 
-const RUN_CAP = 200; // keep the newest N runs per user
+const RUN_CAP = 200;
 
 function id(): string {
   return randomBytes(12).toString('hex');
@@ -61,7 +55,7 @@ function decryptSecret(rec: { iv: string; ct: string; tag: string }): string | u
     decipher.setAuthTag(Buffer.from(rec.tag, 'base64'));
     return Buffer.concat([decipher.update(Buffer.from(rec.ct, 'base64')), decipher.final()]).toString('utf8');
   } catch {
-    return undefined; // secret rotated, or tampered — treat as unavailable
+    return undefined;
   }
 }
 
@@ -108,7 +102,6 @@ export async function createUser(input: { email: string; name: string; passwordH
     salt: input.salt,
     createdAt: new Date().toISOString(),
   };
-  // The UNIQUE(email_lower) constraint makes this race-safe: a duplicate inserts 0 rows.
   const { rowCount } = await query(
     `INSERT INTO users (id, email, email_lower, name, password_hash, salt, created_at)
      VALUES ($1, $2, $3, $4, $5, $6, $7)
@@ -119,7 +112,6 @@ export async function createUser(input: { email: string; name: string; passwordH
   return user;
 }
 
-/** Strip secrets before anything is persisted (we never store a GitHub PAT). */
 function sanitizeRequest(req: RunRequest): RunRequest {
   const { pat: _pat, ...rest } = req;
   return rest;
@@ -167,12 +159,12 @@ export async function deletePreset(userId: string, presetId: string): Promise<bo
   return rowCount > 0;
 }
 
-const PROJECT_VERSION_CAP = 25; // keep the newest N versions per project (each carries a full payload)
+const PROJECT_VERSION_CAP = 25;
 
 function clampInterval(sec: number | undefined): number {
   const n = Math.floor(Number(sec));
   if (!Number.isFinite(n) || n <= 0) return 900;
-  return Math.max(60, n); // never poll faster than once a minute
+  return Math.max(60, n);
 }
 
 function isUniqueViolation(e: unknown): boolean {
@@ -320,7 +312,6 @@ export async function deleteProject(userId: string, projectId: string): Promise<
   return rowCount > 0;
 }
 
-/** Watched projects whose interval has elapsed (or never checked). Server-internal — not user-scoped. */
 export async function listDueWatchedProjects(limit = 20): Promise<ProjectRecord[]> {
   const { rows } = await query<ProjectRow>(
     `SELECT * FROM projects
@@ -407,7 +398,6 @@ export interface AppendVersionInput {
   payload: unknown;
 }
 
-/** Insert a new version and advance the project's pointers, atomically; then trim to the cap. */
 export async function appendProjectVersion(userId: string, projectId: string, v: AppendVersionInput): Promise<ProjectVersionMeta> {
   await ensureReady();
   const now = new Date().toISOString();
@@ -462,7 +452,6 @@ export async function appendProjectVersion(userId: string, projectId: string, v:
   };
 }
 
-/** Record the outcome of a check that produced no new version (unchanged / error). */
 export async function updateProjectCheck(
   userId: string,
   projectId: string,
@@ -489,7 +478,7 @@ interface PatRow {
 export async function createPat(userId: string, name: string, token: string): Promise<PatDTO> {
   const trimmed = token.trim();
   if (!trimmed) throw new Error('Token is empty.');
-  await ensureReady(); // the secret must be loaded before we encrypt
+  await ensureReady();
   const enc = encryptSecret(trimmed);
   const rec = {
     id: id(),
@@ -509,7 +498,6 @@ export async function listPats(userId: string): Promise<PatDTO[]> {
   return rows.map((r) => ({ id: r.id, name: r.name, last4: r.last4, createdAt: iso(r.created_at) }));
 }
 
-/** Decrypt and return a stored token. Server-only — never expose the result to the browser. */
 export async function getPatToken(userId: string, patId: string): Promise<string | undefined> {
   const { rows } = await query<PatRow>(`SELECT iv, ct, tag FROM pats WHERE id = $1 AND user_id = $2`, [patId, userId]);
   return rows[0] ? decryptSecret(rows[0]) : undefined;
@@ -569,7 +557,6 @@ export async function saveRun(meta: RunMeta, payload: unknown): Promise<void> {
       JSON.stringify(payload), meta.createdAt,
     ],
   );
-  // Keep only the newest RUN_CAP runs per user.
   await query(
     `DELETE FROM runs WHERE user_id = $1
        AND id NOT IN (SELECT id FROM runs WHERE user_id = $1 ORDER BY created_at DESC LIMIT $2)`,
@@ -707,7 +694,6 @@ export async function listDeployments(userId: string, projectId: string): Promis
   return rows.map(rowToDeployment);
 }
 
-/** All deployments still flagged active — used by the boot reconcile to clean up orphans. */
 export async function listActiveDeployments(): Promise<DeploymentRecord[]> {
   const { rows } = await query<DeploymentRow>(`SELECT * FROM deployments WHERE status IN ('starting', 'running')`);
   return rows.map(rowToDeployment);
@@ -743,7 +729,6 @@ export async function setHostConfig(userId: string, projectId: string, input: { 
       [projectId, userId, input.baseUrl, enc.iv, enc.ct, enc.tag, now],
     );
   } else {
-    // Update the base URL only; keep any previously-stored token.
     await query(
       `INSERT INTO project_host_config (project_id, user_id, base_url, updated_at)
        VALUES ($1, $2, $3, $4)
@@ -753,7 +738,6 @@ export async function setHostConfig(userId: string, projectId: string, input: { 
   }
 }
 
-/** Decrypt the stored upstream token. Server-only — never expose to the browser. */
 export async function getHostToken(userId: string, projectId: string): Promise<string | undefined> {
   const { rows } = await query<HostConfigRow>(
     `SELECT base_url, iv, ct, tag FROM project_host_config WHERE project_id = $1 AND user_id = $2`,
@@ -854,7 +838,6 @@ export async function listPublishes(userId: string, projectId: string): Promise<
   return rows.map(rowToPublish);
 }
 
-/** The most recently-published version of a package (platform-global), for auto-increment. */
 export async function lastPublishedVersion(packageName: string): Promise<string | null> {
   const { rows } = await query<{ published_version: string }>(
     `SELECT published_version FROM publishes WHERE package_name = $1 AND status = 'published' ORDER BY created_at DESC LIMIT 1`,

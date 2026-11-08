@@ -9,11 +9,6 @@ import { findOpenApiSpecs } from '../spec-finder';
 import { errMessage } from '../errors';
 import { createGitClient, type GitClient } from '../git';
 
-/**
- * Input 1: a GitHub repo authenticated with a PAT. Clone → pin the commit SHA → locate the
- * OpenAPI spec → bundle to a self-contained document. `git` is injectable so this is testable
- * against a local fixture without touching the network.
- */
 export function createGithubAdapter(git: GitClient = createGitClient()): SourceAdapter<GithubSource> {
   return {
     name: 'github',
@@ -39,9 +34,6 @@ export function createGithubAdapter(git: GitClient = createGitClient()): SourceA
       try {
         let specPath: string | undefined;
         if (source.spec) {
-          // Contain the caller-supplied path inside the checkout: `join` alone does NOT neutralize
-          // "../" or absolute segments, which would let --spec read arbitrary host files into the
-          // artifact (and break origin-blindness).
           const root = resolve(checkout.dir);
           const candidate = resolve(checkout.dir, source.spec);
           if (candidate !== root && !candidate.startsWith(root + sep)) {

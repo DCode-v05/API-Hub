@@ -76,7 +76,6 @@ export function ProjectDetail({ projectId }: { projectId: string }) {
     };
   }, [projectId]);
 
-  // Load the selected version's payload for replay.
   React.useEffect(() => {
     if (selected == null) {
       setPayload(null);
@@ -98,7 +97,7 @@ export function ProjectDetail({ projectId }: { projectId: string }) {
   async function sync() {
     if (syncing) return;
     setSyncing(true);
-    setSelected(null); // surrender the right pane to the live funnel
+    setSelected(null);
     setRightTab('results');
     setBanner(null);
     dispatch({ t: 'reset' });
@@ -170,16 +169,12 @@ export function ProjectDetail({ projectId }: { projectId: string }) {
   const showLive = selected == null && runState.status !== 'idle';
 
   return (
-    // On lg+ the page becomes a fixed-height panel: the header/watch bar stays put and the two
-    // columns below (Versions + pipeline output) each scroll on their own. Below lg it stacks and
-    // the page scrolls normally.
     <div className="mx-auto max-w-6xl px-5 py-6 sm:px-8 lg:flex lg:h-[calc(100dvh-3.5rem)] lg:flex-col lg:overflow-hidden lg:py-0">
       <div className="lg:shrink-0 lg:pt-6">
       <Link href="/projects" className="inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground">
         <ArrowLeft className="h-3.5 w-3.5" /> Projects
       </Link>
 
-      {/* Header */}
       <header className="mt-3 flex flex-wrap items-start gap-4">
         <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-border bg-muted/40 text-foreground">
           <Icon className="h-5 w-5" />
@@ -209,7 +204,6 @@ export function ProjectDetail({ projectId }: { projectId: string }) {
         </div>
       </header>
 
-      {/* Watch controls */}
       <div className="mt-4 flex flex-wrap items-center gap-3 rounded-lg border border-border bg-card px-4 py-3">
         <WatchToggle enabled={project.watchEnabled} onChange={(v) => void patch({ watchEnabled: v })} />
         <div className="h-5 w-px bg-border" />
@@ -233,7 +227,6 @@ export function ProjectDetail({ projectId }: { projectId: string }) {
         </span>
       </div>
 
-      {/* Persistent error / sync banner */}
       {project.lastStatus === 'error' && project.lastError ? (
         <div className="mt-3 flex items-start gap-2 rounded-lg border border-danger/25 bg-danger/5 px-4 py-2.5 text-xs text-danger">
           <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
@@ -256,7 +249,6 @@ export function ProjectDetail({ projectId }: { projectId: string }) {
       ) : null}
       </div>
 
-      {/* Versions + results — each column scrolls independently; the header above stays fixed. */}
       <div className="mt-6 grid grid-cols-1 gap-6 lg:mt-6 lg:min-h-0 lg:flex-1 lg:grid-cols-[320px_1fr] lg:grid-rows-[minmax(0,1fr)] lg:pb-6">
         <div className="flex min-h-0 flex-col">
           <div className="mb-2 flex shrink-0 items-center justify-between">
@@ -275,8 +267,6 @@ export function ProjectDetail({ projectId }: { projectId: string }) {
         </div>
 
         <div className="flex min-w-0 flex-col lg:min-h-0">
-          {/* Results | Distribute tabs. Distribute is disabled only while a sync is actively running
-              (or before the first version exists) — not after a finished sync. */}
           <div className="mb-2 flex shrink-0 gap-1">
             {(['results', 'distribute'] as const).map((t) => {
               const disabled = t === 'distribute' && (syncing || project.latestVersion === 0);

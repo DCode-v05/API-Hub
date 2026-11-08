@@ -1,4 +1,3 @@
-// Public API of the ingestion stage (Adapt → Assemble → Validate + Repair).
 export { ingest, ingestOne } from './service';
 export { adapt, type AdaptResult } from './adapt';
 export { assemble, type AssembleResult } from './assemble';

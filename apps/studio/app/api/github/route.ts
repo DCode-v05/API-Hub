@@ -20,7 +20,6 @@ export async function POST(req: NextRequest): Promise<Response> {
   const repo = (body.repo ?? '').trim();
   if (!repo) return Response.json({ ok: false, error: 'Enter a repository.' });
 
-  // Explicit token only — typed token, or a saved PAT resolved server-side. No .env fallback.
   const token = body.pat?.trim() || (body.patId ? await getPatToken(user.id, body.patId) : undefined);
   if (!token) return Response.json({ ok: false, error: 'Enter or select a GitHub PAT to check access.' });
 

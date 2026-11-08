@@ -8,10 +8,6 @@ import { publishSdk } from '@/lib/run-client';
 import { cx } from '@/lib/ui';
 import { Badge, Button, Input, Spinner } from '@/components/ui';
 
-/**
- * The "Distribute" surface for a project version: host the MCP server as a local process, download
- * the CLI package, and publish the SDKs to npm / PyPI — each a status-driven card.
- */
 export function DistributePanel({ projectId, version }: { projectId: string; version: number }) {
   const [host, setHost] = React.useState<{ deployments: DeploymentRecord[]; config: HostConfig } | null>(null);
   const [pub, setPub] = React.useState<{ registry: RegistryStatus; publishes: PublishRecord[] } | null>(null);
@@ -240,7 +236,6 @@ function CliSection({
 
       <div className="my-4 h-px bg-border" />
 
-      {/* Download the installable package */}
       <a
         href={cliPackUrl(projectId, version)}
         download
@@ -307,7 +302,6 @@ function CliTester({ projectId, deploymentId }: { projectId: string; deploymentI
   );
 }
 
-/** Tokenize a command string, honoring simple "double" / 'single' quotes. */
 function parseArgs(cmd: string): string[] {
   return (cmd.match(/"[^"]*"|'[^']*'|\S+/g) ?? []).map((t) => t.replace(/^["']|["']$/g, ''));
 }
@@ -417,7 +411,6 @@ function SdkRow({
           setPhase('error');
         }
       });
-      // If the stream ended without an explicit published/error frame, settle gracefully.
       setPhase((p) => (p === 'running' ? 'idle' : p));
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));

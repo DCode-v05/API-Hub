@@ -1,10 +1,3 @@
-/**
- * cn.lock — the committed determinism lockfile.
- *
- * For each input (by label) it pins the content hash of the IR and the sha256 of every generated
- * surface file. `cn verify` recomputes those and fails on any drift, so a non-deterministic change
- * or an unintended output change is caught in CI — the same gate Speakeasy's gen.lock provides.
- */
 import { createHash } from 'node:crypto';
 import { existsSync, readFileSync } from 'node:fs';
 import { mkdirSync, writeFileSync } from 'node:fs';
@@ -14,15 +7,12 @@ import type { Projection } from '@cn/contracts';
 export const LOCK_VERSION = 'cn-lock/1';
 
 export interface LockEntry {
-  /** The IR's content hash (sha256 over canonical, provenance-free content). */
   irHash: string;
-  /** Map of surface file path ("sdk/typescript/src/client.ts") → sha256 of its bytes. */
   surfaces: Record<string, string>;
 }
 
 export interface LockFile {
   lockVersion: string;
-  /** Records which generator produced the locked hashes; a bump here explains expected drift. */
   generator: string;
   entries: Record<string, LockEntry>;
 }
@@ -31,7 +21,6 @@ export function sha256(content: string): string {
   return 'sha256:' + createHash('sha256').update(content, 'utf8').digest('hex');
 }
 
-/** sha256 of every generated file, keyed by "<surface dir>/<file path>" (POSIX), key-sorted. */
 export function projectionSig(projection: Projection): Record<string, string> {
   const out: Record<string, string> = {};
   for (const surface of projection.surfaces) {
@@ -50,7 +39,6 @@ export function sigEqual(a: Record<string, string>, b: Record<string, string>): 
   return true;
 }
 
-/** Human-readable diffs between a locked entry and a freshly computed one (empty ⇒ identical). */
 export function compareEntry(expected: LockEntry, actual: LockEntry): string[] {
   const diffs: string[] = [];
   if (expected.irHash !== actual.irHash) {
@@ -82,7 +70,6 @@ export function readLock(path: string): LockFile | null {
   }
 }
 
-/** Write the lock with recursively sorted keys so the committed file is stable and diff-friendly. */
 export function writeLock(path: string, lock: LockFile): void {
   mkdirSync(dirname(path), { recursive: true });
   writeFileSync(path, JSON.stringify(sortKeys(lock), null, 2) + '\n', 'utf8');

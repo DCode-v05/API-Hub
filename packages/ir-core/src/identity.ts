@@ -1,15 +1,9 @@
-/**
- * Stable, identity-based operation IDs. The id is derived from the operation's *identity*
- * (operationId, or method+path) — not its file position — so a later spec edit or reorder doesn't
- * change it, and diffs/overrides bound to it survive.
- */
 export function deriveOperationId(path: string, method: string, op: Record<string, unknown>): string {
   const explicit = typeof op['operationId'] === 'string' ? op['operationId'].trim() : '';
   const base = explicit !== '' ? explicit : `${method.toLowerCase()}_${pathSlug(path)}`;
   return `op_${sanitize(base)}`;
 }
 
-/** The resource a connector operation belongs to: its first tag, else the first path segment. */
 export function deriveResource(path: string, op: Record<string, unknown>): string {
   const tags = op['tags'];
   if (Array.isArray(tags) && typeof tags[0] === 'string' && tags[0].trim() !== '') {

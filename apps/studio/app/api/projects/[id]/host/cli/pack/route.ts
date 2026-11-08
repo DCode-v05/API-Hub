@@ -27,7 +27,6 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     if (j.name) name = j.name;
     if (j.version) ver = j.version;
   } catch {
-    /* fall back to defaults */
   }
 
   const tgz = makeTarball(cli.files);

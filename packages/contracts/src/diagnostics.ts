@@ -1,17 +1,9 @@
-/**
- * Graded diagnostics, diagnostics-first like the comparable tools: acquisition degrades
- * gracefully and reports, rather than hard-failing — except where correctness is impossible
- * (an `error` means no trustworthy artifact could be produced).
- */
-
 export type Severity = 'error' | 'warning' | 'note';
 
 export interface Diagnostic {
   severity: Severity;
-  /** Stable machine code, e.g. "acq.github.spec_not_found". */
   code: string;
   message: string;
-  /** Optional JSON Pointer or file location the diagnostic refers to. */
   pointer?: string;
 }
 

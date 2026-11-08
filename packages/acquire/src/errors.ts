@@ -3,7 +3,6 @@ export function errMessage(err: unknown): string {
   return String(err);
 }
 
-/** Strip a PAT that may have been interpolated into a clone URL before it reaches a log/diagnostic. */
 export function redactSecrets(text: string): string {
   return text
     .replace(/x-access-token:[^@\s]+@/gi, 'x-access-token:***@')

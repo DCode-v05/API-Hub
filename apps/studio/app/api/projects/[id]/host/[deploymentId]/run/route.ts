@@ -2,8 +2,6 @@ import type { NextRequest } from 'next/server';
 import { getCurrentUser } from '@/lib/server/session';
 import { getDeployment } from '@/lib/server/store';
 
-// Server-side proxy to a hosted CLI server's POST /run. Lets the browser UI invoke a command without
-// a cross-origin request to the host's port (which has no CORS). Auth + ownership gated.
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;

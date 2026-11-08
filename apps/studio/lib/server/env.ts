@@ -1,11 +1,6 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
-/**
- * Minimal .env loader for the standalone DB scripts (the Next app loads its own env via
- * next.config.mjs). Reads the single repo-root .env.local then .env — without overriding any
- * variable already present in the environment (real env wins, then .env.local, then .env).
- */
 export function loadStudioEnv(root = process.cwd()): void {
   for (const file of [join(root, '.env.local'), join(root, '.env')]) {
     if (!existsSync(file)) continue;

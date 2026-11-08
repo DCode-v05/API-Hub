@@ -5,7 +5,6 @@ import { SUBCOMMANDS, SURFACES, type InputCli } from '@/lib/useInputCli';
 import { cx } from '@/lib/ui';
 import { CopyButton } from '@/components/run/CopyButton';
 
-/** Left-column CLI controls: subcommand, options, the generated command, and Run / Insert. */
 export function CliControls({ cli }: { cli: InputCli }) {
   return (
     <div className="space-y-4 rounded-lg border border-border bg-card p-4">
@@ -28,7 +27,6 @@ export function CliControls({ cli }: { cli: InputCli }) {
         </div>
       </div>
 
-      {/* Options (only for subcommands that support them) */}
       {cli.showOnly || cli.showIr ? (
         <div className="space-y-2.5">
           {cli.showOnly ? (
@@ -77,7 +75,6 @@ export function CliControls({ cli }: { cli: InputCli }) {
         </div>
       ) : null}
 
-      {/* Generated command */}
       <div className="space-y-2 rounded-md border border-border bg-muted/20 p-2.5">
         <div className="flex items-center justify-between gap-2">
           <span className="flex items-center gap-1.5 text-[11px] font-medium text-muted-foreground">

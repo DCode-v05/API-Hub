@@ -1,12 +1,6 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
-/**
- * Minimal .env loader (no dependency). Reads KEY=VALUE lines from a `.env` file in the current
- * working directory and sets them in process.env — WITHOUT overriding variables already present in
- * the real environment (real env wins). Lets `cn` pick up CN_GITHUB_PAT / GITHUB_TOKEN / CN_TOKEN
- * from a local, gitignored .env instead of passing --pat on every command.
- */
 export function loadEnv(file = '.env'): void {
   const path = resolve(process.cwd(), file);
   if (!existsSync(path)) return;

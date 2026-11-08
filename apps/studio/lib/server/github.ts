@@ -1,4 +1,3 @@
-// Heuristic for "this file is probably an OpenAPI/Swagger spec".
 const SPEC_RE = /(^|\/)(openapi|swagger|api)[^/]*\.(ya?ml|json)$|\.(openapi|swagger)\.(ya?ml|json)$/i;
 
 export interface RepoInspection {
@@ -21,7 +20,6 @@ function gh(path: string, pat: string): Promise<Response> {
   });
 }
 
-/** Validate access to a repo and discover its branches + candidate spec files. */
 export async function inspectRepo(repo: string, pat: string, ref?: string): Promise<RepoInspection> {
   const [owner, name] = repo.trim().split('/');
   if (!owner || !name) return { ok: false, error: 'Enter the repo as "owner/repo".' };
@@ -49,7 +47,6 @@ export async function inspectRepo(repo: string, pat: string, ref?: string): Prom
       branches = Array.isArray(arr) ? arr.map((b) => b.name).filter((n): n is string => !!n) : [];
     }
   } catch {
-    /* non-fatal */
   }
 
   let specs: string[] = [];
@@ -64,7 +61,6 @@ export async function inspectRepo(repo: string, pat: string, ref?: string): Prom
         .slice(0, 50);
     }
   } catch {
-    /* non-fatal */
   }
 
   return { ok: true, defaultBranch, isPrivate: !!repoJson.private, branches, specs };

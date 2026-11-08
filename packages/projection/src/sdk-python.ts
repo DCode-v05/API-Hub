@@ -5,7 +5,6 @@ import type { PlannedOp, PlannedParam, PlannedResource, ProjectionPlan } from '.
 import { DO_NOT_EDIT } from './gen-util';
 import { pyDoc, pySafeIdent, uniquify } from './idents';
 
-/** Project the IR into an installable Python SDK package. */
 export function generatePythonSdk(plan: ProjectionPlan): GeneratedFile[] {
   const mod = plan.pyModule;
   return [
@@ -18,7 +17,6 @@ export function generatePythonSdk(plan: ProjectionPlan): GeneratedFile[] {
   ];
 }
 
-/** Map each param's wire name → a safe, unique-within-this-scope Python identifier. */
 function varMap(params: PlannedParam[]): Map<string, string> {
   const used = new Set<string>();
   const map = new Map<string, string>();
@@ -26,7 +24,6 @@ function varMap(params: PlannedParam[]): Map<string, string> {
   return map;
 }
 
-/** A Python type annotation. `qualified` prefixes refs with `models.` (used outside models.py). */
 function pyTypeOf(plan: ProjectionPlan, t: { type: string; ref?: string }, qualified: boolean): string {
   if (t.ref) {
     const cls = plan.modelClassByName.get(t.ref) ?? pascalIdent(t.ref);
@@ -119,7 +116,6 @@ function models(plan: ProjectionPlan): string {
   if (plan.models.length === 0) out.push('# (no component schemas)');
   for (const model of plan.models) {
     out.push('@dataclass', `class ${model.className}:`);
-    // dataclass: non-default fields must precede default fields.
     const ordered = [...model.fields].sort((a, b) => Number(b.required) - Number(a.required));
     if (ordered.length === 0) out.push('    pass');
     const used = new Set<string>();

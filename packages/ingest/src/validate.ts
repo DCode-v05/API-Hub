@@ -7,12 +7,6 @@ export interface ValidateResult {
   valid: boolean;
 }
 
-/**
- * Validate answers "is it correct?" (blocking). Deterministic linting rejects broken specs loudly:
- * undeclared path params, duplicate operationIds, and unresolved internal refs are errors; softer
- * issues are warnings/notes. `valid` is false iff any error is present — bad specs fail loud, so
- * the IR stage won't run on them.
- */
 export function validateSpec(document: OpenApiDocument): ValidateResult {
   const diagnostics: Diagnostic[] = [];
   const doc = document as Record<string, unknown>;
@@ -91,8 +85,6 @@ function declaredPathParams(doc: Record<string, unknown>, pathItem: Record<strin
   const harvest = (params: unknown): void => {
     if (!Array.isArray(params)) return;
     for (const raw of params) {
-      // Parameters are commonly shared via $ref (#/components/parameters/...) — resolve before
-      // inspecting, mirroring how the IR builder dereferences them, so we don't false-positive.
       const p = isObject(raw) && typeof raw['$ref'] === 'string' ? resolvePointer(doc, raw['$ref']) : raw;
       if (isObject(p) && p['in'] === 'path' && typeof p['name'] === 'string') names.add(p['name']);
     }

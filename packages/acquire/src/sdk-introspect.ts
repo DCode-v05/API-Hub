@@ -13,11 +13,6 @@ export interface SdkFile {
   text: string;
 }
 
-/**
- * Reverse-derive operations from a TypeScript SDK by walking the AST for exported classes
- * (their public methods) and exported functions. Types are mapped to JSON Schema heuristically —
- * this is an inferred, lower-trust contract, not a declared one.
- */
 export function introspectTypescriptSdk(files: SdkFile[]): IntrospectResult {
   const ops: DerivedOperation[] = [];
   const diagnostics: Diagnostic[] = [];
@@ -132,11 +127,6 @@ function lowerFirst(s: string): string {
 
 const PY_DEF = /^[ \t]*(?:async[ \t]+)?def[ \t]+([A-Za-z_]\w*)[ \t]*\(([\s\S]*?)\)[ \t]*(?:->[ \t]*[^:]+)?:/gm;
 
-/**
- * Reverse-derive operations from a Python SDK with a lightweight signature scan (no Python
- * runtime). Best-effort: handles `def name(self, a: str, b: int = 0) -> T:` shapes; complex
- * nested generics in annotations may be approximated.
- */
 export function introspectPythonSdk(files: SdkFile[]): IntrospectResult {
   const ops: DerivedOperation[] = [];
   const diagnostics: Diagnostic[] = [];
@@ -146,7 +136,7 @@ export function introspectPythonSdk(files: SdkFile[]): IntrospectResult {
     let m: RegExpExecArray | null;
     while ((m = PY_DEF.exec(file.text)) !== null) {
       const name = m[1]!;
-      if (name.startsWith('_')) continue; // private / dunder
+      if (name.startsWith('_')) continue;
       ops.push({ name, inputSchema: pyParamsToSchema(m[2] ?? '') });
     }
   }
@@ -167,7 +157,7 @@ function pyParamsToSchema(raw: string): Record<string, unknown> {
   for (const part of splitTopLevel(raw)) {
     const seg = part.trim();
     if (!seg || seg === '/' || seg === '*') continue;
-    if (seg.startsWith('*')) continue; // *args / **kwargs
+    if (seg.startsWith('*')) continue;
     const eq = splitOnce(seg, '=');
     const left = eq[0].trim();
     const colon = splitOnce(left, ':');
@@ -193,7 +183,6 @@ function pyTypeToSchema(ann?: string): Record<string, unknown> {
   return { type: 'object', 'x-cn-py-type': t };
 }
 
-/** Split a parameter list on top-level commas (ignoring commas inside [], (), {} or quotes). */
 function splitTopLevel(raw: string): string[] {
   const parts: string[] = [];
   let depth = 0;

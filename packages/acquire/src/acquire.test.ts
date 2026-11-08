@@ -20,7 +20,6 @@ function ctx(now = '2026-01-01T00:00:00.000Z'): AcquireContext {
   return { now: () => now, toolVersion: 'test' };
 }
 
-/** Reach into the synthesized OpenAPI without fighting the loose index types. */
 function op(artifact: CanonicalArtifact, path: string, method = 'post'): any {
   return (artifact.document.paths[path] as Record<string, unknown>)[method];
 }

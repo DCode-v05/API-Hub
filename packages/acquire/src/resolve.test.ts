@@ -12,7 +12,6 @@ describe('bundleOpenApi', () => {
       join(fixtures, 'lumen', 'openapi', 'lumen.json'),
     );
     expect(document).not.toBeNull();
-    // No external $ref ("./" "../" or "/") should remain after bundling — origin-blind.
     expect(JSON.stringify(document)).not.toMatch(/"\$ref":\s*"\.{0,2}\//);
     expect(diagnostics.some((d) => d.severity === 'error')).toBe(false);
   });

@@ -3,13 +3,10 @@ import { pinHash } from './pin';
 
 export interface ProvenanceInput {
   sourceKind: SourceKind;
-  /** Display-only origin (repo url, file path, server command). */
   origin: string;
   trust: TrustLevel;
-  /** The canonical document to hash (the pin is computed over this, excluding the timestamp). */
   document: unknown;
   ctx: AcquireContext;
-  /** Adapter id, recorded in `acquirer`. */
   adapter: string;
   sha?: string;
   ref?: string;

@@ -9,12 +9,6 @@ export interface AssembleResult {
   diagnostics: Diagnostic[];
 }
 
-/**
- * Assemble removes the STRUCTURE axis: produce one self-contained document. External refs were
- * bundled at acquisition, so here we (a) merge multiple specs under one namespace with collision
- * detection, (b) re-assert self-containment, and (c) note circular schema refs (kept as internal
- * refs — naturally finite, no infinite expansion).
- */
 export function assemble(documents: OpenApiDocument[]): AssembleResult {
   const diagnostics: Diagnostic[] = [];
   if (documents.length === 0) {
@@ -58,7 +52,6 @@ function mergeDocuments(documents: OpenApiDocument[], diagnostics: Diagnostic[])
     const ns = slug(titleOf(doc) ?? `source${i}`);
     const schemas = schemasOf(doc);
 
-    // Detect colliding (and genuinely different) schema names, rename them, rewrite refs in `doc`.
     const renames: Record<string, string> = {};
     for (const name of Object.keys(schemas)) {
       if (name in baseSchemas && !sameJson(baseSchemas[name], schemas[name])) {
@@ -85,8 +78,6 @@ function mergeDocuments(documents: OpenApiDocument[], diagnostics: Diagnostic[])
           if (!(key in existing)) {
             existing[key] = value;
           } else if (isHttpMethod(key)) {
-            // Only a real operation (HTTP method) sharing a path is a true collision; path-level
-            // keys like `parameters`/`summary` legally coexist — keep the base's and move on.
             diagnostics.push(
               error('ing.assemble.path_collision', `duplicate ${key.toUpperCase()} ${path} across merged specs`),
             );
@@ -115,7 +106,6 @@ function rewriteSchemaRef(node: unknown, from: string, to: string): void {
   visit(node);
 }
 
-/** Note circular references among component schemas (they're kept as internal refs). */
 function noteCircularRefs(document: OpenApiDocument, diagnostics: Diagnostic[]): void {
   const schemas = schemasOf(document as Record<string, unknown>);
   const edges = new Map<string, Set<string>>();
@@ -125,7 +115,7 @@ function noteCircularRefs(document: OpenApiDocument, diagnostics: Diagnostic[]):
     edges.set(name, targets);
   }
   const cyclic = new Set<string>();
-  const state = new Map<string, number>(); // 0=visiting, 1=done
+  const state = new Map<string, number>();
   let truncated = false;
   const dfs = (node: string, stack: string[]): void => {
     if (state.get(node) === 1) return;

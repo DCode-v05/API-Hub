@@ -10,8 +10,6 @@ export function AuthForm({ mode }: { mode: 'login' | 'signup' }) {
   const action = mode === 'login' ? loginAction : signupAction;
   const [state, formAction, pending] = React.useActionState<AuthState, FormData>(action, {});
 
-  // On success the server action has already set the session cookie. A hard navigation guarantees
-  // the gated app layout re-runs server-side with the fresh cookie.
   React.useEffect(() => {
     if (state.ok) window.location.href = '/';
   }, [state.ok]);

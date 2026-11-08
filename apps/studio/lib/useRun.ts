@@ -20,11 +20,6 @@ export interface UseRun {
   reset: () => void;
 }
 
-/**
- * Drives one pipeline run: POSTs the request, streams SSE events into the run reducer, and exposes
- * a synchronous in-flight guard so a double-click can't launch two runs. `cancel()` aborts the
- * fetch (the server stops the in-process pipeline at the next stage boundary).
- */
 export function useRun(): UseRun {
   const [state, dispatch] = React.useReducer(runReducer, INITIAL_RUN);
   const [running, setRunning] = React.useState(false);

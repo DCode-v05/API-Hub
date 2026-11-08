@@ -1,6 +1,5 @@
 import type { IrOperation } from '@cn/contracts';
 
-/** Split any identifier (camelCase, snake_case, kebab, spaced) into lowercased words. */
 export function words(s: string): string[] {
   return s
     .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
@@ -24,7 +23,6 @@ export function pascal(s: string): string {
   return words(s).map(cap).join('') || 'Model';
 }
 
-/** PascalCase guaranteed to be a valid identifier start (prefixed if it would begin with a digit). */
 export function pascalIdent(s: string): string {
   const p = pascal(s);
   return /^[A-Za-z_]/.test(p) ? p : 'Api' + p;
@@ -53,7 +51,6 @@ function stripOp(id: string): string {
   return id.replace(/^op_/, '');
 }
 
-/** RESTful verb from method + path shape: create/list/get/update/delete. */
 export function restVerb(method: string, path: string): string {
   const segs = path.split('/').filter(Boolean);
   const last = segs[segs.length - 1] ?? '';
@@ -73,10 +70,6 @@ export function restVerb(method: string, path: string): string {
   }
 }
 
-/**
- * Method names per resource, with deterministic collision resolution. Prefers the clean REST verb
- * (projects.create), falls back to the operation-id minus the resource noun, then a numeric suffix.
- */
 export function methodNamesFor(resource: string, ops: IrOperation[]): Map<string, string> {
   const out = new Map<string, string>();
   const used = new Set<string>();
@@ -101,12 +94,10 @@ export function methodNamesFor(resource: string, ops: IrOperation[]): Map<string
   return out;
 }
 
-/** MCP tool name: snake_case of the operation identity, e.g. op_createProject → create_project. */
 export function toolName(op: IrOperation): string {
   return snake(stripOp(op.id));
 }
 
-/** CLI flag for a field: kebab-case, e.g. team_id → team-id. */
 export function flagName(fieldName: string): string {
   return kebab(fieldName);
 }

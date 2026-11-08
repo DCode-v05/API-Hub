@@ -1,6 +1,4 @@
 #!/usr/bin/env node
-// Launcher: run the TypeScript entry under tsx without a shell, so paths containing spaces and
-// flag arguments are forwarded verbatim. (Avoid `npm run cn -- …`; npm intercepts --flags.)
 import { spawnSync } from 'node:child_process';
 import { createRequire } from 'node:module';
 import { dirname, join } from 'node:path';

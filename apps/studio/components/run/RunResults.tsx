@@ -13,11 +13,9 @@ import { SurfacesBrowser } from '@/components/SurfacesBrowser';
 
 type Tab = 'diagnostics' | 'ir' | 'surfaces' | 'tests';
 
-/** The pipeline funnel + output tabs. Rendered only while a run is in progress or finished. */
 export function RunResults({ state }: { state: RunState }) {
   const [tab, setTab] = React.useState<Tab>('ir');
 
-  // Auto-advance the active tab as each stage lands, mirroring the live pipeline.
   React.useEffect(() => {
     if (state.ir) setTab('ir');
   }, [state.ir]);
@@ -87,7 +85,6 @@ export function RunResults({ state }: { state: RunState }) {
   );
 }
 
-/** What each test category verifies — shown under its header so the purpose is clear in the UI. */
 const CATEGORY_INFO: Record<string, string> = {
   Pipeline: 'The source was fetched, validated, and normalized to one standard OpenAPI 3.1 document.',
   IR: 'The content-hashed intermediate representation — the single source every surface is built from — is well-formed.',
@@ -101,13 +98,11 @@ const CATEGORY_INFO: Record<string, string> = {
     'A green result means you could round-trip (e.g. MCP → SDK → MCP) without losing anything — a self-test no single-direction generator (Stainless / Fern / Speakeasy) can do.',
 };
 
-/** Conversion test results — one row per check, with a green tick (pass) or red cross (fail). */
 function TestsPanel({ tests }: { tests: TestResult[] }) {
   const passed = tests.filter((t) => t.status === 'pass').length;
   const failed = tests.length - passed;
   const allGreen = failed === 0;
 
-  // Group by category, preserving first-seen order.
   const groups: { name: string; items: TestResult[] }[] = [];
   for (const t of tests) {
     let g = groups.find((x) => x.name === t.category);
@@ -165,7 +160,6 @@ function TestsPanel({ tests }: { tests: TestResult[] }) {
   );
 }
 
-/** The green tick / red cross button. */
 function TickCross({ status }: { status: 'pass' | 'fail' }) {
   return (
     <span

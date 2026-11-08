@@ -3,7 +3,6 @@ import { flagName } from './naming';
 import { pySafeIdent } from './idents';
 import type { PlannedOp, PlannedResource, ProjectionPlan } from './plan';
 
-/** Project the IR into an MDX documentation set (frontmatter + Markdown; drops into Docusaurus/Mintlify/Next). */
 export function generateDocs(plan: ProjectionPlan): GeneratedFile[] {
   const files: GeneratedFile[] = [{ path: 'index.mdx', content: indexMdx(plan) }];
   for (const res of plan.resources) {
@@ -12,7 +11,6 @@ export function generateDocs(plan: ProjectionPlan): GeneratedFile[] {
   return files;
 }
 
-/** YAML frontmatter block (single-quoted to stay valid for titles with punctuation). */
 function frontmatter(title: string, description: string): string {
   const esc = (s: string): string => s.replace(/'/g, "''");
   return `---\ntitle: '${esc(title)}'\ndescription: '${esc(description)}'\n---\n\n`;
@@ -65,7 +63,7 @@ function examples(plan: ProjectionPlan, res: PlannedResource, op: PlannedOp): st
     Object.fromEntries(op.bodyParams.map((p) => [p.name, placeholder(p.type)])),
   );
   const curlPath = op.path.replace(/\{([^}]+)\}/g, (_m, n: string) => `<${n}>`);
-  const shellBody = bodyJson.replace(/'/g, "'\\''"); // safe inside shell single quotes
+  const shellBody = bodyJson.replace(/'/g, "'\\''");
   const curl =
     `curl -X ${op.httpMethod} "${base}${curlPath}"` +
     (plan.auth !== 'none' ? ` \\\n  -H "authorization: Bearer $TOKEN"` : '') +

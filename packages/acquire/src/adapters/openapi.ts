@@ -6,7 +6,6 @@ import { bundleOpenApi } from '../resolve';
 import { emptyOpenApiDoc } from '../openapi-shape';
 import { buildArtifact } from '../artifact-build';
 
-/** Input 2: an OpenAPI document at a local path or http(s) URL. The reference, declared path. */
 export function createOpenApiAdapter(): SourceAdapter<OpenApiSource> {
   return {
     name: 'openapi',

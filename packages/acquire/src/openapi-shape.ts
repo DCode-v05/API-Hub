@@ -6,26 +6,15 @@ export function emptyOpenApiDoc(title = 'untitled', version = '0.0.0'): OpenApiD
   return { openapi: '3.1.0', info: { title, version }, paths: {} };
 }
 
-/** A single operation reverse-derived from an SDK method or an MCP tool. */
 export interface DerivedOperation {
-  /** Logical name (sdk method / mcp tool). Becomes the operationId. */
   name: string;
   description?: string;
-  /** JSON Schema for the input (mcp inputSchema, or an object of sdk params). */
   inputSchema?: Record<string, unknown>;
-  /** JSON Schema for the output, when known. */
   outputSchema?: Record<string, unknown>;
-  /** Best-effort HTTP verb; defaults to POST since SDK/MCP rarely declare one. */
   method?: string;
-  /** Best-effort path; defaults to "/<name>". */
   path?: string;
 }
 
-/**
- * Build an OpenAPI-3.1-shaped document from reverse-derived operations. SDK methods and MCP
- * tools rarely declare REST verbs/paths, so we synthesize stable ones (POST /<name>) and mark
- * the whole document inferred — the doc's "lower trust signal" for reverse-derived inputs.
- */
 export function buildOpenApiFromOperations(args: {
   title: string;
   version: string;
@@ -34,9 +23,6 @@ export function buildOpenApiFromOperations(args: {
 }): { document: OpenApiDocument; diagnostics: Diagnostic[] } {
   const diagnostics: Diagnostic[] = [];
   const paths: Record<string, unknown> = {};
-  // JSON-Schema `$defs` carried by a tool's inputSchema (our generated MCP servers, and many
-  // third-party ones, use them for referenced/recursive models). Lift them to components/schemas
-  // and rewrite `#/$defs/X` → `#/components/schemas/X` so the assembled doc is self-contained.
   const componentSchemas: Record<string, unknown> = {};
 
   for (const op of args.ops) {
@@ -86,16 +72,12 @@ export function buildOpenApiFromOperations(args: {
     'x-cn-source': args.source,
     'x-cn-trust': 'inferred',
   };
-  // Surface any lifted `$defs` as resolvable components (key-sorted for deterministic output).
   if (Object.keys(componentSchemas).length > 0) {
     const sorted: Record<string, unknown> = {};
     for (const k of Object.keys(componentSchemas).sort()) sorted[k] = componentSchemas[k];
     document.components = { schemas: sorted };
   }
 
-  // Reverse-derived schemas (mcp inputSchema / sdk types) are copied verbatim and never went
-  // through the OpenAPI bundler, so enforce origin-blindness here too: a tool/param schema that
-  // carries an external $ref would make the artifact non-self-contained.
   for (const ref of collectExternalRefs(document)) {
     diagnostics.push(
       warn(
@@ -112,7 +94,6 @@ function isObject(v: unknown): v is Record<string, unknown> {
   return v !== null && typeof v === 'object' && !Array.isArray(v);
 }
 
-/** Clone a JSON Schema, hoisting its `$defs` into `into` and rewriting `#/$defs/X` refs to components. */
 function liftDefs(schema: Record<string, unknown>, into: Record<string, unknown>): Record<string, unknown> {
   return rewrite(schema, into) as Record<string, unknown>;
 }

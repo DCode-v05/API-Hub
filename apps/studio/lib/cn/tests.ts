@@ -10,12 +10,6 @@ import { project } from '@cn/projection';
 import type { ValidatedArtifact } from '@cn/contracts';
 import type { TestResult } from '../events';
 
-/**
- * Conversion test suite — runs after projection on every conversion (SDK→MCP, MCP→SDK, …).
- * Each check is deterministic and produces a pass/fail the UI shows as a green tick / red cross.
- * Covers: the pipeline, IR integrity, surface structure, operation coverage, Pass^k determinism,
- * and lossless round-trip (re-ingesting a generated surface).
- */
 export async function runConversionTests(
   validated: ValidatedArtifact,
   ir: Ir,
@@ -89,7 +83,6 @@ export async function runConversionTests(
       add(`Round-trip lossless (${rt.via})`, rt.lossless, `${rt.rederived} operation(s) preserved on re-ingest`, `only ${rt.rederived}/${rt.source} operation(s) re-derived`, 'Round-trip');
     }
   } catch {
-    /* round-trip is best-effort — skip on failure rather than crash the run */
   }
 
   return tests;
@@ -108,7 +101,6 @@ function sigEqual(a: Record<string, string>, b: Record<string, string>): boolean
 
 interface RT { via: string; source: number; rederived: number; lossless: boolean }
 
-/** Feed a generated surface back through the pipeline and confirm operations survive. */
 async function roundTrip(projection: Projection, sourceIr: Ir): Promise<RT | null> {
   const mcp = projection.surfaces.find((s) => s.kind === 'mcp');
   const ts = projection.surfaces.find((s) => s.kind === 'sdk-typescript');
@@ -142,6 +134,6 @@ async function roundTrip(projection: Projection, sourceIr: Ir): Promise<RT | nul
     const ir2 = buildIr(val);
     return { via, source: sourceIr.operations.length, rederived: ir2.operations.length, lossless: ir2.operations.length >= sourceIr.operations.length };
   } finally {
-    if (dir) try { rmSync(dir, { recursive: true, force: true }); } catch { /* ignore */ }
+    if (dir) try { rmSync(dir, { recursive: true, force: true }); } catch {  }
   }
 }

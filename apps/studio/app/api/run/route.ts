@@ -6,7 +6,6 @@ import type { RunEvent, RunRequest } from '@/lib/events';
 import { getCurrentUser } from '@/lib/server/session';
 import { getPatToken, saveRun } from '@/lib/server/store';
 
-// The pipeline uses git/child_process/fs and the TypeScript compiler — Node runtime only.
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 export const maxDuration = 120;
@@ -31,7 +30,6 @@ export async function POST(req: NextRequest): Promise<Response> {
         try {
           controller.enqueue(encoder.encode(`data: ${JSON.stringify(event)}\n\n`));
         } catch {
-          /* stream closed */
         }
       };
 
@@ -42,7 +40,6 @@ export async function POST(req: NextRequest): Promise<Response> {
           send({ t: 'done', ok: false, ms: 0 });
           return;
         }
-        // Resolve a saved PAT (referenced by id) to a real token — server-side, for this user only.
         if (body.kind === 'github' && body.patId && !body.pat?.trim()) {
           const token = await getPatToken(user.id, body.patId);
           if (token) body.pat = token;
@@ -54,13 +51,11 @@ export async function POST(req: NextRequest): Promise<Response> {
           return;
         }
         const result = await executePipeline(built.source, { emit: send, signal: ac.signal, stagger: true });
-        // Record the run (skipped automatically if the client aborted before completion).
         if (!ac.signal.aborted) {
           try {
             const { meta, payload } = buildRunPayload({ userId: user.id, request: body, result });
             await saveRun(meta, payload);
           } catch {
-            /* persistence is best-effort — never break the response over it */
           }
         }
       } catch (e) {

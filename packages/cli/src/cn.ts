@@ -139,8 +139,6 @@ async function runStage(args: string[], stage: Stage): Promise<number> {
   const { values, out, quiet, only, ir: collectIr } = parsed.input;
   const ctx = makeContext(quiet);
 
-  // `cn run` is the all-in-one command: one OR MANY inputs from flags, or — with no input flags —
-  // every input listed in cn.config.json.
   if (stage === 'run') {
     let sources: SourceRef[];
     let runOut = out;
@@ -181,7 +179,6 @@ async function runStage(args: string[], stage: Stage): Promise<number> {
     return runAll(sources, baseOut, quiet, runOnly, ctx, collectIr ? join(baseOut, 'ir') : undefined);
   }
 
-  // Single-input stages.
   const builtSource = buildSource(values);
   if ('error' in builtSource) {
     process.stderr.write(`cn ${stage}: ${builtSource.error}\n\n`);
@@ -211,10 +208,8 @@ async function runStage(args: string[], stage: Stage): Promise<number> {
     return validated.valid ? 0 : 1;
   }
 
-  // build / project: fail loud rather than proceed from an invalid spec.
   if (!validated.valid) {
     if (!quiet) reportValidated(validated);
-    // Even under --quiet, surface WHY it failed (the blocking errors) on the failure path.
     else writeDiagnostics(validated.diagnostics.filter((d) => d.severity === 'error'));
     process.stderr.write(`\n✗ not running ${stage} — validation failed (bad specs fail loud)\n`);
     return 1;
@@ -227,7 +222,6 @@ async function runStage(args: string[], stage: Stage): Promise<number> {
     return 0;
   }
 
-  // stage === 'project': render the IR into the four surfaces and write the tree.
   const outDir = out ?? 'surfaces';
   const projection = project(ir, only ? { only } : {});
   await writeSurfaces(projection, outDir);
@@ -245,19 +239,12 @@ async function writeSurfaces(projection: Projection, outDir: string): Promise<vo
         try {
           await chmod(full, 0o755);
         } catch {
-          /* not POSIX (e.g. Windows) — ignore */
         }
       }
     }
   }
 }
 
-/**
- * `cn verify` — the determinism gate. For each input it rebuilds the IR + surfaces K times and:
- *   1) asserts all K rebuilds are byte-identical (Pass^k reproducibility), then
- *   2) compares against cn.lock (the committed golden) — failing on any drift.
- * `--update` (re)writes the lock from the current output. Designed to run green in CI.
- */
 async function runVerify(args: string[]): Promise<number> {
   const parsed = parseInput(args, 'verify');
   if (parsed.kind !== 'run') return parsed.kind === 'help' ? 0 : parsed.code;
@@ -270,7 +257,6 @@ async function runVerify(args: string[]): Promise<number> {
   const lockPath = resolve(process.cwd(), typeof values['lock'] === 'string' ? values['lock'] : 'cn.lock');
   const rel = (p: string): string => relative(process.cwd(), p) || p;
 
-  // Inputs from flags, else from cn.config.json (like `cn run`).
   let sources: SourceRef[];
   let useOnly = only;
   if (hasInputFlags(values)) {
@@ -320,7 +306,6 @@ async function runVerify(args: string[]): Promise<number> {
       failures += 1; continue;
     }
 
-    // Rebuild the deterministic core (IR + surfaces) K times.
     const irHashes: string[] = [];
     const sigs: Record<string, string>[] = [];
     let opCount = 0;
@@ -382,7 +367,6 @@ async function runVerify(args: string[]): Promise<number> {
   return 1;
 }
 
-/** Files whose hash isn't constant across the K rebuilds (for non-determinism diagnostics). */
 function driftingFiles(sigs: Record<string, string>[]): string[] {
   const out: string[] = [];
   const base = sigs[0] ?? {};
@@ -401,10 +385,6 @@ function reportProjection(projection: Projection, outDir: string): void {
   writeDiagnostics(projection.diagnostics);
 }
 
-/**
- * The all-in-one pipeline: input → artifact + validated + IR + surfaces, all written to outDir.
- * When `irCopyPath` is set (--ir), the IR is additionally copied there (e.g. ir/<label>.json).
- */
 async function runFull(
   artifact: CanonicalArtifact,
   outDir: string,
@@ -442,10 +422,6 @@ async function runFull(
   return 0;
 }
 
-/**
- * `cn run` over one or more inputs. A single input writes flat to `baseOut/`; multiple inputs each
- * write to `baseOut/<label>/`, with a final tally. Acquire failures don't abort the others.
- */
 async function runAll(
   sources: SourceRef[],
   baseOut: string,
@@ -501,7 +477,6 @@ async function runAll(
   return results.every((r) => r.ok) ? 0 : 1;
 }
 
-/** A short, unique-ish directory label for an input, e.g. github-test, openapi-tasks-api. */
 function labelFor(source: SourceRef): string {
   let part = labelSlug(descriptivePart(source));
   if (part.startsWith(`${source.kind}-`)) part = part.slice(source.kind.length + 1);
@@ -570,7 +545,6 @@ function asArray(v: unknown): string[] {
   return [];
 }
 
-/** Collect every input flag (each repeatable) into a list of sources — used by `cn run`. */
 function buildSources(v: RawValues): { sources: SourceRef[] } | { error: string } {
   const sources: SourceRef[] = [];
   const pat = (typeof v['pat'] === 'string' ? v['pat'] : undefined) ?? envPat();
@@ -612,7 +586,6 @@ function buildSources(v: RawValues): { sources: SourceRef[] } | { error: string 
   return { sources };
 }
 
-/** Single-input stages (acquire/ingest/build/project) require exactly one source. */
 function buildSource(v: RawValues): BuildResult {
   const built = buildSources(v);
   if ('error' in built) return built;
@@ -639,7 +612,6 @@ interface InputConfig {
   only?: SurfaceKind[];
 }
 
-/** Load inputs from cn.config.json in the cwd. null = no file (so `cn run` with no flags can use it). */
 function loadInputConfig(): InputConfig | { error: string } | null {
   const path = resolve(process.cwd(), CONFIG_FILE);
   if (!existsSync(path)) return null;
@@ -668,7 +640,6 @@ function loadInputConfig(): InputConfig | { error: string } | null {
   return result;
 }
 
-/** Turn one cn.config.json input entry into a SourceRef (paths resolved against the config dir). */
 function sourceFromConfig(entry: unknown, dir: string): { source: SourceRef } | { error: string } {
   if (!entry || typeof entry !== 'object') return { error: 'each input must be an object' };
   const e = entry as Record<string, unknown>;

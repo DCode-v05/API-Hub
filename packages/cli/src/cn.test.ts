@@ -29,9 +29,9 @@ describe('cn run (all-in-one)', () => {
     const out = mkdtempSync(join(tmpdir(), 'cn-run-bad-'));
     const code = await runCli(['run', '--openapi', join(fixtures, 'nope.json'), '-o', out, '--quiet']);
     expect(code).toBe(1);
-    expect(existsSync(join(out, 'artifact.json'))).toBe(true); // wrote what it had
+    expect(existsSync(join(out, 'artifact.json'))).toBe(true);
     expect(existsSync(join(out, 'validated.json'))).toBe(true);
-    expect(existsSync(join(out, 'ir.json'))).toBe(false); // but no IR from an invalid spec
+    expect(existsSync(join(out, 'ir.json'))).toBe(false);
     expect(existsSync(join(out, 'surfaces'))).toBe(false);
     rmSync(out, { recursive: true, force: true });
   });
@@ -75,10 +75,8 @@ describe('cn run (all-in-one)', () => {
       process.chdir(dir);
       const code = await runCli(['run', '--openapi', lumen, '--mcp', mcp, '--ir', '-o', 'gen', '--quiet']);
       expect(code).toBe(0);
-      // collected IR copies live under the out dir: <out>/ir/<label>.json
       expect(existsSync(join(dir, 'gen', 'ir', 'openapi-lumen.json'))).toBe(true);
       expect(existsSync(join(dir, 'gen', 'ir', 'mcp-tools.json'))).toBe(true);
-      // normal per-input output still written
       expect(existsSync(join(dir, 'gen', 'openapi-lumen', 'ir.json'))).toBe(true);
       expect(existsSync(join(dir, 'gen', 'openapi-lumen', 'surfaces'))).toBe(true);
     } finally {

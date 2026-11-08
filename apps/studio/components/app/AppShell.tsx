@@ -74,7 +74,6 @@ function NavLinks({ pathname, onNavigate }: { pathname: string; onNavigate?: () 
   );
 }
 
-/** Saved projects, listed below the nav. Clicking one opens its detail page. */
 function SidebarProjects({ onNavigate }: { onNavigate?: () => void }) {
   const [projects, setProjects] = React.useState<ProjectRecord[] | null>(null);
 
@@ -134,14 +133,12 @@ export function AppShell({ user, children }: { user: UserDTO; children: React.Re
   const [mobileOpen, setMobileOpen] = React.useState(false);
   const current = NAV.find((n) => isActive(pathname, n.href));
 
-  // Close the mobile drawer on route change.
   React.useEffect(() => {
     setMobileOpen(false);
   }, [pathname]);
 
   return (
     <div className="min-h-screen lg:grid lg:grid-cols-[208px_1fr]">
-      {/* Desktop sidebar */}
       <aside className="sticky top-0 hidden h-screen flex-col border-r border-border bg-card/40 lg:flex">
         <div className="flex h-14 items-center border-b border-border px-4">
           <Brand />
@@ -152,7 +149,6 @@ export function AppShell({ user, children }: { user: UserDTO; children: React.Re
         </div>
       </aside>
 
-      {/* Mobile drawer */}
       {mobileOpen ? (
         <div className="fixed inset-0 z-50 lg:hidden">
           <div className="absolute inset-0 bg-background/70 backdrop-blur-sm" onClick={() => setMobileOpen(false)} />
@@ -172,7 +168,6 @@ export function AppShell({ user, children }: { user: UserDTO; children: React.Re
       ) : null}
 
       <div className="flex min-w-0 flex-col">
-        {/* Topbar */}
         <header className="sticky top-0 z-30 flex h-14 items-center gap-2 border-b border-border bg-background/80 px-4 backdrop-blur-md sm:px-6">
           <Button variant="ghost" size="icon" className="lg:hidden" onClick={() => setMobileOpen(true)} aria-label="Open menu">
             <Menu className="h-4 w-4" />

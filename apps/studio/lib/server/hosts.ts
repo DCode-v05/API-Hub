@@ -8,14 +8,6 @@ import { CLI_HTTP_WRAPPER, CLI_HTTP_WRAPPER_FILENAME } from './cli-http-template
 import { createDeployment, listActiveDeployments, updateDeployment } from './store';
 import { writeSurfaceFiles } from './surface-fs';
 
-/**
- * The local host registry. The studio writes a version's surface to a managed dir and spawns a
- * zero-dependency HTTP server (bound to 127.0.0.1) as a child process: for `mcp` the generated
- * `http-server.mjs` (POST /mcp), for `cli` a wrapper that turns the generated `cli.mjs` into a
- * command service (POST /run). It tracks the live child + a rolling log buffer on globalThis (so dev
- * hot-reload doesn't lose handles); the DB `deployments` row is the durable record.
- */
-
 type HostKind = 'mcp' | 'cli';
 
 const LOG_CAP = 200;
@@ -64,7 +56,6 @@ async function waitHealthy(port: number): Promise<boolean> {
       const res = await fetch(`http://127.0.0.1:${port}/health`);
       if (res.ok) return true;
     } catch {
-      /* not up yet */
     }
     await sleep(200);
   }
@@ -101,7 +92,6 @@ export async function startHost(input: StartHostInput): Promise<StartHostResult>
     return { deploymentId: '', status: 'failed', port: null, error: `This ${kind.toUpperCase()} surface is missing ${requiredFile}. Re-sync the project to regenerate it.` };
   }
 
-  // One active host per (project, kind) — stop any existing of this kind first.
   await stopHostsForProject(userId, project.id, kind);
 
   const port = await freePort();
@@ -117,8 +107,6 @@ export async function startHost(input: StartHostInput): Promise<StartHostResult>
     return { deploymentId: dep.id, status: 'failed', port, error: errMsg(e) };
   }
 
-  // Minimal env — the hosted server only needs these; we deliberately do NOT inherit the studio's
-  // process.env so its secrets (DATABASE_URL, STUDIO_*, registry tokens) never reach the child.
   const env: NodeJS.ProcessEnv = {
     PATH: process.env.PATH,
     NODE_ENV: process.env.NODE_ENV,
@@ -209,17 +197,11 @@ async function stopHostsForProject(userId: string, projectId: string, kind: Host
   }
 }
 
-/** Live status + rolling logs for a running deployment (null if not in this process's registry). */
 export function getHostLive(deploymentId: string): { status: string; port: number; logs: string[] } | null {
   const e = hosts().get(deploymentId);
   return e ? { status: e.status, port: e.port, logs: [...e.logs] } : null;
 }
 
-/**
- * On boot, clean up deployments left `running`/`starting` by a previous studio process: best-effort
- * kill their recorded pid (orphans) and mark them stopped. The in-memory registry is empty after a
- * restart, so nothing here is reachable any more. Best-effort — never throws.
- */
 export async function reconcileHosts(): Promise<void> {
   try {
     const active = await listActiveDeployments();
@@ -229,17 +211,14 @@ export async function reconcileHosts(): Promise<void> {
       await updateDeployment(dep.id, { status: 'stopped', stoppedAt: new Date().toISOString() });
     }
   } catch {
-    /* reconcile is best-effort */
   }
 }
 
-/** Best-effort kill of an orphaned pid recorded by a previous process (boot reconcile). */
 export function killPid(pid: number): void {
   try {
     if (process.platform === 'win32') spawn('taskkill', ['/PID', String(pid), '/T', '/F']);
     else process.kill(pid, 'SIGTERM');
   } catch {
-    /* already gone */
   }
 }
 
@@ -248,7 +227,6 @@ function killEntry(entry: HostEntry): void {
     if (process.platform === 'win32' && entry.pid) spawn('taskkill', ['/PID', String(entry.pid), '/T', '/F']);
     else entry.child.kill('SIGTERM');
   } catch {
-    /* ignore */
   }
 }
 
@@ -256,7 +234,6 @@ function rmSafe(dir: string): void {
   try {
     rmSync(dir, { recursive: true, force: true });
   } catch {
-    /* best effort */
   }
 }
 

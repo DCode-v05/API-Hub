@@ -4,9 +4,7 @@ export interface NavItem {
   href: string;
   label: string;
   Icon: React.ComponentType<{ className?: string }>;
-  /** Short description used on the home page cards. */
   blurb?: string;
-  /** Trust the produced artifact carries (input types only). */
   trust?: 'declared' | 'inferred';
   group: 'main' | 'inputs' | 'tools';
 }

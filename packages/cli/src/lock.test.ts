@@ -58,7 +58,7 @@ describe('lock', () => {
     };
     writeLock(path, lock);
     const text = readFileSync(path, 'utf8');
-    expect(text.indexOf('"a"')).toBeLessThan(text.indexOf('"b"')); // entries sorted
+    expect(text.indexOf('"a"')).toBeLessThan(text.indexOf('"b"'));
     expect(text.endsWith('\n')).toBe(true);
     const back = readLock(path);
     expect(back?.entries['b']?.irHash).toBe('sha256:bb');

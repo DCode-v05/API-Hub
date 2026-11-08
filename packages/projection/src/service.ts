@@ -8,14 +8,9 @@ import { generateCli } from './cli';
 import { generateDocs } from './docs';
 
 export interface ProjectOptions extends PlanOptions {
-  /** Restrict which surfaces to emit (default: all). */
   only?: SurfaceKind[];
 }
 
-/**
- * Project one IR into the four surfaces (SDK split by language). Every surface derives from the
- * same IR, so they cannot drift — a spec change updates the IR once and all surfaces re-render.
- */
 export function project(ir: Ir, options: ProjectOptions = {}): Projection {
   const plan = planProjection(ir, options);
   const diagnostics: Diagnostic[] = [];
@@ -30,10 +25,6 @@ export function project(ir: Ir, options: ProjectOptions = {}): Projection {
 
   const surfaces = options.only ? all.filter((s) => options.only!.includes(s.kind)) : all;
 
-  // Infra · versioning — bake a deterministic provenance + content-version manifest into every
-  // converted artifact, so each generated SDK/MCP/CLI/docs records exactly what it was converted
-  // from. No timestamps or filesystem paths → byte-reproducible. This is the "versioning" layer
-  // the incumbents have, done in-conversion (no hosted build farm, no publishing).
   const kinds = surfaces.map((s) => s.kind).slice().sort();
   for (const s of surfaces) {
     s.files.push({ path: 'cn.manifest.json', content: manifestJson(ir, s.kind, kinds) });
@@ -51,7 +42,6 @@ export function project(ir: Ir, options: ProjectOptions = {}): Projection {
   return { surfaces, diagnostics };
 }
 
-/** A deterministic provenance/version record embedded in each converted artifact. */
 function manifestJson(ir: Ir, surface: string, surfaces: string[]): string {
   return (
     JSON.stringify(

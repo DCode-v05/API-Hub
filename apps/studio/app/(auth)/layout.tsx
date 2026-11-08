@@ -4,7 +4,6 @@ import { getCurrentUser } from '@/lib/server/session';
 export const dynamic = 'force-dynamic';
 
 export default async function AuthLayout({ children }: { children: React.ReactNode }) {
-  // Already signed in? Skip the auth pages.
   if (await getCurrentUser()) redirect('/');
 
   return (

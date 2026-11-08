@@ -21,7 +21,6 @@ export interface InputCli {
   argv: string[];
   display: string;
   note?: string;
-  /** GitHub PAT context from the form, passed to the spawned cn (used over any .env). */
   auth: { pat?: string; patId?: string };
   queued: { args: string[]; token: number } | null;
   inserted: { text: string; token: number } | null;
@@ -30,16 +29,10 @@ export interface InputCli {
   artifacts: CliFile[] | null;
   artifactsTruncated: boolean;
   setArtifacts: (files: CliFile[] | null, truncated?: boolean) => void;
-  /** Bumped by clear() — the terminal resets its scrollback when this changes. */
   clearToken: number;
   clear: () => void;
 }
 
-/**
- * CLI state for an input page, shared between the controls (left) and the terminal (right). Builds
- * the `cn` command from the page's current form `request`, the chosen subcommand, and a few options
- * (--only / --ir / -o), then drives the embedded terminal via run()/insert().
- */
 export function useInputCli(request: RunRequest): InputCli {
   const [sub, setSub] = React.useState<Subcommand>('run');
   const [only, setOnly] = React.useState<string[]>([]);
@@ -56,7 +49,6 @@ export function useInputCli(request: RunRequest): InputCli {
     setArtifactsTruncated(truncated);
   }, []);
 
-  // Clear the terminal scrollback (via clearToken) and drop any captured output files.
   const clear = React.useCallback(() => {
     setClearToken((t) => t + 1);
     setArtifactsState(null);

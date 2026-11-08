@@ -7,12 +7,10 @@ import { cx } from '@/lib/ui';
 import { Button } from '@/components/ui';
 import { CopyButton } from '@/components/run/CopyButton';
 
-/** Browses the files `cn` produced (read back from its output dir) with a .zip download. */
 export function OutputFiles({ files, truncated }: { files: CliFile[]; truncated?: boolean }) {
   const [activePath, setActivePath] = React.useState(files[0]?.path ?? '');
   const [zipping, setZipping] = React.useState(false);
 
-  // A new run replaces `files` without remounting — reset the selection.
   React.useEffect(() => {
     setActivePath(files[0]?.path ?? '');
   }, [files]);

@@ -4,11 +4,6 @@ import type { RunMeta } from '../records';
 import type { RunPayload } from '../run-payload';
 import type { PipelineResult } from './pipeline';
 
-/**
- * Build the persisted run record (lightweight `meta` + full `payload`) from a finished pipeline
- * result. Shared by /api/run (ad-hoc runs → runs table) and project syncs (→ project_versions).
- */
-
 function severityCounts(result: PipelineResult): { error: number; warning: number } {
   const all = [...(result.acquire?.diagnostics ?? []), ...(result.ingest?.diagnostics ?? [])];
   return {
@@ -21,7 +16,6 @@ export interface BuildPayloadInput {
   userId: string;
   request: RunRequest;
   result: PipelineResult;
-  /** Reuse an id (e.g. a project-version id); a fresh UUID is generated otherwise. */
   runId?: string;
   createdAt?: string;
 }
@@ -48,7 +42,6 @@ export function buildRunPayload(input: BuildPayloadInput): { meta: RunMeta; payl
     testsFailed: result.tests?.failed ?? 0,
     createdAt: input.createdAt ?? new Date().toISOString(),
   };
-  // Defensive: the PAT is already stripped upstream, but never let one slip into a stored payload.
   const { pat: _pat, ...safeReq } = request;
   const payload: RunPayload = {
     meta,

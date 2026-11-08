@@ -1,15 +1,11 @@
-// Shared record shapes used by BOTH server (store) and client (history / presets UI).
-// Pure types only — no node imports — so this file is safe to import from client components.
 import type { RunEvent, RunRequest, StageSourceKind } from './events';
 
-/** A non-sensitive view of a user, safe to send to the browser. */
 export interface UserDTO {
   id: string;
   email: string;
   name: string;
 }
 
-/** A saved GitHub PAT, minus the token itself. The browser only ever sees name + last4. */
 export interface PatDTO {
   id: string;
   name: string;
@@ -17,7 +13,6 @@ export interface PatDTO {
   createdAt: string;
 }
 
-/** A saved input configuration the user can reload later. `request.pat` is stripped before storage. */
 export interface PresetRecord {
   id: string;
   userId: string;
@@ -30,14 +25,12 @@ export interface PresetRecord {
 export type ProjectStatus = 'pending' | 'ok' | 'unchanged' | 'changed' | 'error';
 export type ProjectTrigger = 'initial' | 'manual' | 'watch';
 
-/** A named input source under version control. Replaces PresetRecord; `request.pat` never stored. */
 export interface ProjectRecord {
   id: string;
   userId: string;
   name: string;
   kind: StageSourceKind;
   request: RunRequest;
-  /** Saved-PAT reference used to re-acquire github sources headlessly (raw token never stored). */
   patId: string | null;
   watchEnabled: boolean;
   watchIntervalSec: number;
@@ -52,7 +45,6 @@ export interface ProjectRecord {
   updatedAt: string;
 }
 
-/** What changed between two versions of a project. Advisory — surfaced in the UI, never a gate. */
 export interface DiffSummary {
   opsAdded: string[];
   opsRemoved: string[];
@@ -63,7 +55,6 @@ export interface DiffSummary {
   note: string;
 }
 
-/** Lightweight index entry for one stored version of a project (payload fetched on demand). */
 export interface ProjectVersionMeta {
   id: string;
   projectId: string;
@@ -82,16 +73,13 @@ export interface ProjectVersionMeta {
   createdAt: string;
 }
 
-/** Result of a project sync — no change, a new version, or a recorded failure. */
 export type CheckOutcome =
   | { status: 'unchanged'; contentHash: string }
   | { status: 'changed'; version: ProjectVersionMeta }
   | { status: 'error'; message: string };
 
-/** Frames streamed by the manual-sync SSE endpoint: the pipeline funnel events + a final outcome. */
 export type ProjectSyncEvent = RunEvent | { t: 'version'; outcome: CheckOutcome };
 
-/** Lightweight index entry for a past pipeline run. The full payload lives in runs/<id>.json. */
 export interface RunMeta {
   id: string;
   userId: string;
@@ -107,7 +95,6 @@ export interface RunMeta {
   errorCount: number;
   warningCount: number;
   proposalCount: number;
-  /** Conversion test cases — counts from the post-project Test stage (optional for older runs). */
   testsPassed?: number;
   testsFailed?: number;
   createdAt: string;
@@ -115,7 +102,6 @@ export interface RunMeta {
 
 export type DeploymentStatus = 'starting' | 'running' | 'stopped' | 'failed';
 
-/** A hosted MCP server (the studio runs the generated http-server.mjs as a local process). */
 export interface DeploymentRecord {
   id: string;
   projectId: string;
@@ -127,7 +113,6 @@ export interface DeploymentRecord {
   pid: number | null;
   baseUrl: string | null;
   error: string | null;
-  /** Convenience for the UI — `http://localhost:<port>/mcp` when running. */
   endpoint: string | null;
   startedAt: string | null;
   stoppedAt: string | null;
@@ -135,7 +120,6 @@ export interface DeploymentRecord {
   updatedAt: string;
 }
 
-/** The upstream API config for a project's hosted MCP server (token never sent to the client). */
 export interface HostConfig {
   baseUrl: string;
   hasToken: boolean;
@@ -144,7 +128,6 @@ export interface HostConfig {
 export type PublishRegistry = 'npm' | 'pypi';
 export type PublishStatus = 'pending' | 'published' | 'failed';
 
-/** A record of an SDK published to npm / PyPI. */
 export interface PublishRecord {
   id: string;
   projectId: string;
@@ -161,13 +144,11 @@ export interface PublishRecord {
   updatedAt: string;
 }
 
-/** Whether the platform-global registry credentials + tooling are configured (for the UI). */
 export interface RegistryStatus {
   npm: { configured: boolean; scope: string };
   pypi: { configured: boolean; prefix: string; tooling: boolean };
 }
 
-/** Frames streamed by the publish SSE endpoint: build/publish logs + a final outcome. */
 export type PublishEvent =
   | { t: 'log'; line: string }
   | { t: 'step'; name: string }

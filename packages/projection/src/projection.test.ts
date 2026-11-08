@@ -116,13 +116,12 @@ describe('codegen safety (review regressions)', () => {
   it('Python identifiers are keyword / digit / collision safe', async () => {
     const { surfaces } = project(await adversarialIr());
     const client = endingWith(surfaces, 'sdk-python', 'client.py')!;
-    expect(client).toContain('class_'); // reserved word escaped
+    expect(client).toContain('class_');
     expect(client).toContain('from_');
     expect(client).toContain('import_');
-    expect(client).not.toMatch(/\*,[^)]*\bclass:/); // never a bare reserved-word param
-    expect(client).toContain('_2fa_code'); // digit-leading prefixed
-    expect(client).toContain('x_trace_id2'); // colliding idents disambiguated
-    // wire names are preserved on the request body/headers
+    expect(client).not.toMatch(/\*,[^)]*\bclass:/);
+    expect(client).toContain('_2fa_code');
+    expect(client).toContain('x_trace_id2');
     expect(client).toContain('"class": class_');
     expect(client).toContain('"2fa-code": _2fa_code');
   });

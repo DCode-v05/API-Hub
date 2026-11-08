@@ -128,8 +128,6 @@ export function Field({
 }) {
   const generatedId = React.useId();
   const id = htmlFor ?? generatedId;
-  // Associate the label with the field's control so clicking the label focuses it and screen
-  // readers announce the accessible name.
   const child = React.isValidElement(children)
     ? React.cloneElement(children as React.ReactElement<{ id?: string }>, {
         id: (children as React.ReactElement<{ id?: string }>).props.id ?? id,

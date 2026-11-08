@@ -42,8 +42,6 @@ export function SurfacesBrowser({ surfaces, label }: { surfaces: SurfaceDTO[]; l
   const [activePath, setActivePath] = React.useState(surfaces[0]?.files[0]?.path ?? '');
   const [zipping, setZipping] = React.useState(false);
 
-  // A new run replaces `surfaces` without remounting — reset the selection so the highlighted
-  // tab/file and the shown content can't disagree.
   React.useEffect(() => {
     setActiveKind(surfaces[0]?.kind ?? '');
     setActivePath(surfaces[0]?.files[0]?.path ?? '');

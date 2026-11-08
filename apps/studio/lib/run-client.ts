@@ -1,7 +1,6 @@
 import type { RunEvent, RunRequest } from './events';
 import type { ProjectSyncEvent, PublishEvent } from './records';
 
-/** Parse a server SSE body, calling onEvent for each `data:` frame (accepts LF and CRLF). */
 async function pumpSse<T>(body: ReadableStream<Uint8Array>, onEvent: (e: T) => void): Promise<void> {
   const reader = body.getReader();
   const decoder = new TextDecoder();
@@ -17,7 +16,6 @@ async function pumpSse<T>(body: ReadableStream<Uint8Array>, onEvent: (e: T) => v
     try {
       onEvent(JSON.parse(dataLine.slice(5).trim()) as T);
     } catch {
-      /* ignore malformed frames */
     }
   };
 
@@ -30,14 +28,12 @@ async function pumpSse<T>(body: ReadableStream<Uint8Array>, onEvent: (e: T) => v
       buffer = buffer.slice(m.index + m[0].length);
     }
     if (done) {
-      // Flush any trailing frame the server didn't terminate with a blank line.
       if (buffer.trim()) emitBlock(buffer);
       break;
     }
   }
 }
 
-/** POST the input to /api/run and parse the streamed SSE events, calling onEvent for each. */
 export async function runStudio(req: RunRequest, onEvent: (e: RunEvent) => void, signal?: AbortSignal): Promise<void> {
   const res = await fetch('/api/run', {
     method: 'POST',
@@ -49,10 +45,6 @@ export async function runStudio(req: RunRequest, onEvent: (e: RunEvent) => void,
   await pumpSse<RunEvent>(res.body, onEvent);
 }
 
-/**
- * Trigger a manual project sync and stream its events. Emits the same pipeline funnel events as a
- * run, plus a final {t:'version'} frame carrying the outcome (unchanged / new version / error).
- */
 export async function syncProject(
   projectId: string,
   onEvent: (e: ProjectSyncEvent) => void,
@@ -70,7 +62,6 @@ export async function syncProject(
   await pumpSse<ProjectSyncEvent>(res.body, onEvent);
 }
 
-/** Publish an SDK to its registry, streaming build/publish log frames + a final outcome. */
 export async function publishSdk(
   projectId: string,
   version: number,

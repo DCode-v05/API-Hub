@@ -4,7 +4,6 @@ import { createOpenApiAdapter } from './adapters/openapi';
 import { createSdkAdapter } from './adapters/sdk';
 import { createMcpAdapter } from './adapters/mcp';
 
-/** The four built-in adapters, one per accepted input. */
 export function defaultAdapters(): SourceAdapter[] {
   return [
     createGithubAdapter() as unknown as SourceAdapter,
@@ -15,14 +14,9 @@ export function defaultAdapters(): SourceAdapter[] {
 }
 
 export interface AcquireServiceOptions {
-  /** Override the adapter set (tests inject a github adapter backed by a fake git client). */
   adapters?: SourceAdapter[];
 }
 
-/**
- * The acquisition stage: route a SourceRef to the adapter that handles it and return one
- * origin-blind, version-pinned CanonicalArtifact. This is the whole of Part I's first stage.
- */
 export class AcquireService {
   private readonly adapters: SourceAdapter[];
 

@@ -13,7 +13,6 @@ const TRIGGER_LABEL: Record<ProjectVersionMeta['trigger'], string> = {
   watch: 'auto',
 };
 
-/** The version history rail. Newest first; click a version to replay its surfaces on the right. */
 export function ProjectVersionTimeline({
   versions,
   selected,

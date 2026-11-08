@@ -34,7 +34,6 @@ export async function POST(req: NextRequest): Promise<Response> {
     try {
       entries = readdirSync(abs).slice(0, 60);
     } catch {
-      /* ignore */
     }
     if (entries.includes('package.json') || entries.some((e) => e.endsWith('.ts'))) detected = 'typescript';
     else if (entries.includes('pyproject.toml') || entries.includes('setup.py') || entries.some((e) => e.endsWith('.py'))) {

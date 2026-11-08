@@ -1,11 +1,6 @@
 import type { OpenApiDocument, RepairProposal } from '@cn/contracts';
 import { HTTP_METHODS, isObject, schemaType } from './util';
 
-/**
- * Repair answers "is it clear?" (advisory). It NEVER mutates the document — it drafts non-applied
- * proposals (shaped like transform rules) for a human to review and freeze. Today the drafter is
- * deterministic heuristics; an LLM drafter can emit the same RepairProposal shape later.
- */
 export function proposeRepairs(document: OpenApiDocument): RepairProposal[] {
   const proposals: RepairProposal[] = [];
   const doc = document as Record<string, unknown>;
@@ -52,7 +47,6 @@ export function proposeRepairs(document: OpenApiDocument): RepairProposal[] {
         if (!isObject(param)) continue;
         const name = param['name'];
         if (typeof name === 'string' && looksLikeId(name) && isNumeric(schemaType(param['schema']))) {
-          // RFC6901 pointer to the parameter's schema (set_type applies to the schema).
           proposals.push(idTypeProposal(`${pointer}/parameters/${i}/schema`, name, where));
         }
       }

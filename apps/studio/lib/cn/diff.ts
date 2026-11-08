@@ -1,17 +1,6 @@
 import type { Ir, IrOperation } from '@cn/contracts';
 import type { DiffSummary } from '../records';
 
-/**
- * Compare two IRs operation-by-operation (keyed by the durable IrOperation.id) to produce a
- * human-readable change summary. Advisory only — surfaced in the UI, never a publish gate.
- */
-
-/**
- * Stable projection of the parts of an operation that, if changed, change the generated surfaces.
- * Keys are sorted recursively so the comparison is order-independent — the previous IR arrives from
- * Postgres jsonb (which reorders object keys) while the next IR is freshly built (insertion order),
- * and a plain JSON.stringify would otherwise flag every untouched operation as "changed".
- */
 function opSignature(op: IrOperation): string {
   return stableStringify({ method: op.method, path: op.path, auth: op.auth, input: op.input, output: op.output });
 }
@@ -72,8 +61,8 @@ export function diffIr(prev: Ir | undefined, next: Ir, prevFileCount = 0, nextFi
       if (before.method !== op.method || before.path !== op.path) breaking = true;
       const beforeReq = requiredInputs(before);
       const afterNames = new Set((op.input ?? []).map((f) => f.name));
-      for (const name of requiredInputs(op)) if (!beforeReq.has(name)) breaking = true; // newly required
-      for (const name of beforeReq) if (!afterNames.has(name)) breaking = true; // dropped a required param
+      for (const name of requiredInputs(op)) if (!beforeReq.has(name)) breaking = true;
+      for (const name of beforeReq) if (!afterNames.has(name)) breaking = true;
     }
   }
   for (const oid of prevOps.keys()) {

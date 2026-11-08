@@ -42,7 +42,6 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
   const payload = (await getProjectVersionPayload(user.id, id, version)) as RunPayload | null;
   if (!payload?.ir && !payload?.surfaces) return new Response('That version has no generated surfaces.', { status: 400 });
-  // Re-project from the pinned IR with the current generator (deterministic, always up to date).
   const surfaces = payload.ir ? projectSurfaces(payload.ir) : payload.surfaces!;
 
   const lockKey = `publish:${id}:${target}`;
@@ -63,7 +62,6 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
         try {
           controller.enqueue(encoder.encode(`data: ${JSON.stringify(e)}\n\n`));
         } catch {
-          /* stream closed */
         }
       };
       try {

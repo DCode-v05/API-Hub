@@ -1,8 +1,3 @@
-# Sample input #3b: an existing Python SDK (reverse-derived, "inferred" trust).
-# `cn acquire --sdk` introspects every public def. Methods are uniquely named so each maps to its
-# own operation (the Python introspector keys on the function name).
-
-
 class ProjectsClient:
     def __init__(self, token: str):
         self._token = token

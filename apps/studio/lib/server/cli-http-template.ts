@@ -1,9 +1,3 @@
-/**
- * A tiny HTTP wrapper the studio writes next to a generated `cli.mjs` to host the CLI as a command
- * service: `POST /run {args:[…]}` spawns `node cli.mjs …args` (no shell) with the upstream env and
- * returns `{exitCode, stdout, stderr}`; `GET /health` for readiness. Zero dependencies. Bound to
- * 127.0.0.1 by the studio. The filename is unusual so it never collides with a generated file.
- */
 export const CLI_HTTP_WRAPPER_FILENAME = '_cn_cli_http.mjs';
 
 export const CLI_HTTP_WRAPPER = `#!/usr/bin/env node

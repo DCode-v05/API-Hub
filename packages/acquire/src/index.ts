@@ -1,4 +1,3 @@
-// Public API of the acquisition stage.
 export {
   AcquireService,
   defaultAdapters,
@@ -42,7 +41,6 @@ export {
   type IntrospectResult,
 } from './sdk-introspect';
 
-// Re-export the contract types so consumers can import everything from @cn/acquire.
 export type {
   SourceRef,
   GithubSource,

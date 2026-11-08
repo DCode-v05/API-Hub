@@ -40,7 +40,6 @@ export async function loginAction(_prev: AuthState, formData: FormData): Promise
   if (!email || !password) return { error: 'Enter your email and password.' };
 
   const user = await findUserByEmail(email);
-  // Always run a verify to keep timing consistent whether or not the user exists.
   const ok = user ? verifyPassword(password, user.passwordHash, user.salt) : verifyPassword(password, '00', 'ff');
   if (!user || !ok) return { error: 'Incorrect email or password.' };
 

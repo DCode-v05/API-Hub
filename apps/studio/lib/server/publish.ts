@@ -7,14 +7,6 @@ import type { ProjectRecord, PublishEvent, PublishRegistry, RegistryStatus } fro
 import { createPublish, lastPublishedVersion, updatePublish } from './store';
 import { writeSurfaceFiles } from './surface-fs';
 
-/**
- * Publishes a generated SDK to a public registry under a platform-owned org, configured globally via
- * env: STUDIO_NPM_TOKEN + STUDIO_NPM_SCOPE (npm), STUDIO_PYPI_TOKEN + STUDIO_PYPI_PREFIX (PyPI). The
- * TypeScript SDK ships its source (the generator points main/types at src/), so it's published as-is;
- * the Python SDK is built (`python -m build`) then uploaded with twine. The published version
- * auto-increments the patch off the last publish so re-publishing always succeeds. No shell.
- */
-
 const NPM_SCOPE = process.env.STUDIO_NPM_SCOPE || '@connector-network';
 const PYPI_PREFIX = process.env.STUDIO_PYPI_PREFIX || 'cn-';
 
@@ -38,8 +30,6 @@ async function probePyTooling(): Promise<boolean> {
   if (g.__cnPyTooling !== undefined) return g.__cnPyTooling;
   const ok = await new Promise<boolean>((resolve) => {
     try {
-      // Import twine.cli (not just `twine`) so a missing transitive dep (e.g. rich→pygments) is caught
-      // here rather than at upload time.
       const child = spawn(pythonBin(), ['-c', 'import build; import twine.cli'], { env: minimalEnv() });
       child.on('error', () => resolve(false));
       child.on('exit', (code) => resolve(code === 0));
@@ -215,6 +205,5 @@ function rmSafe(dir: string): void {
   try {
     rmSync(dir, { recursive: true, force: true });
   } catch {
-    /* best effort */
   }
 }

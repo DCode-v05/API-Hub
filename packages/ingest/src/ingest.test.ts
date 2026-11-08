@@ -113,7 +113,6 @@ describe('repair (advisory proposals, never applied)', () => {
     expect(idFix?.op).toBe('set_type');
     expect(idFix?.value).toBe('string');
     expect(proposals.some((p) => p.code === 'repair.missing_description')).toBe(true);
-    // proposals are advisory — the document is untouched
     expect((doc.paths['/accounts/{account_id}'] as any).get.parameters[0].schema.type).toBe('integer');
   });
 });

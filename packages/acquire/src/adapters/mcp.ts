@@ -5,11 +5,6 @@ import { buildOpenApiFromOperations, emptyOpenApiDoc, type DerivedOperation } fr
 import { introspectStdioServer, loadMcpManifest, type McpManifest } from '../mcp-client';
 import { errMessage } from '../errors';
 
-/**
- * Input 4: an existing MCP server. Read its advertised tools — from a manifest or a live stdio
- * handshake — and map each tool's inputSchema (already JSON Schema) into an operation. The
- * cleanest reverse-derivation of all, but still an inferred contract.
- */
 export function createMcpAdapter(): SourceAdapter<McpSource> {
   return {
     name: 'mcp',

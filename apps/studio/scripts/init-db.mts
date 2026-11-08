@@ -1,5 +1,3 @@
-// One-shot: create the schema (idempotent) and ensure the session secret exists.
-//   npm run studio:db:init
 import { loadStudioEnv } from '../lib/server/env';
 import { closePool, ensureReady } from '../lib/server/db';
 

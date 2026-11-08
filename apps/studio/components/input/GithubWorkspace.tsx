@@ -95,9 +95,6 @@ export function GithubWorkspace() {
             onChange={(e) => {
               const githubUrl = e.target.value;
               const p = parseGithubUrl(githubUrl);
-              // When the URL parses, it is the source of truth: mirror repo/ref/spec from it,
-              // clearing ref/spec the URL no longer carries (deleting them from the URL clears the
-              // fields). When the URL doesn't parse, leave the manual fields untouched.
               set({
                 githubUrl,
                 ...(p ? { repo: `${p.owner}/${p.repo}`, ref: p.ref ?? '', spec: p.spec ?? '' } : {}),
@@ -181,7 +178,6 @@ export function GithubWorkspace() {
           </Field>
         </div>
 
-        {/* Inspection result */}
         {inspection ? (
           inspection.ok ? (
             <div className="space-y-2.5 rounded-md border border-success/25 bg-success/5 p-3">

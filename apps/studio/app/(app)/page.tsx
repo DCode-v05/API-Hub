@@ -110,7 +110,6 @@ export default async function HomePage() {
             </Link>
           ))}
 
-          {/* The CLI now lives inside each input page. */}
           <div className="flex items-start gap-4 rounded-xl border border-dashed border-border bg-card/40 p-5">
             <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-border bg-muted/40 text-muted-foreground">
               <Terminal className="h-5 w-5" />

@@ -11,7 +11,6 @@ export interface BuiltSource {
   cleanup?: () => Promise<void>;
 }
 
-/** Turn the browser's RunRequest into a SourceRef (writing pasted/uploaded specs to a temp file). */
 export async function buildSourceFromRequest(req: RunRequest): Promise<BuiltSource | { error: string }> {
   if (req.sample) {
     const root = repoRoot();
@@ -44,8 +43,6 @@ export async function buildSourceFromRequest(req: RunRequest): Promise<BuiltSour
     case 'github': {
       const repo = (req.repo ?? '').trim();
       if (!repo || !repo.includes('/')) return { error: 'Enter a GitHub repo as "owner/repo".' };
-      // No silent .env fallback — the studio always requires an explicit token (typed or a saved PAT
-      // resolved by the API route before this point).
       const pat = (req.pat ?? '').trim();
       if (!pat) return { error: 'A GitHub PAT is required — enter a token or select a saved one.' };
       const source: GithubSource = { kind: 'github', repo, pat };
@@ -100,7 +97,6 @@ export async function buildSourceFromRequest(req: RunRequest): Promise<BuiltSour
   }
 }
 
-/** A short directory-style label for an input, mirroring the CLI's labels. */
 export function labelFor(source: SourceRef): string {
   const part = (() => {
     switch (source.kind) {
@@ -133,7 +129,6 @@ async function writeTemp(content: string, ext: string): Promise<{ path: string; 
       try {
         await rm(dir, { recursive: true, force: true });
       } catch {
-        /* best effort */
       }
     },
   };
@@ -148,7 +143,6 @@ function sampleMissing(p: string): string {
   return `Bundled sample not found at ${p} — start the studio from the repo root so its samples/ folder resolves.`;
 }
 
-/** Walk up from cwd to the monorepo root (the dir holding cn.config.json / samples). */
 function repoRoot(): string {
   let dir = process.cwd();
   for (let i = 0; i < 6; i++) {
@@ -160,7 +154,6 @@ function repoRoot(): string {
   return process.cwd();
 }
 
-/** GitHub PAT fallback: env vars, then a .env walking up from cwd (so the repo .env works). */
 function envPat(): string | undefined {
   const fromEnv = process.env['CN_GITHUB_PAT'] || process.env['GITHUB_TOKEN'] || process.env['GH_TOKEN'];
   if (fromEnv) return fromEnv;
@@ -173,7 +166,6 @@ function envPat(): string | undefined {
         if (m && m[1]) return m[1].replace(/^["']|["']$/g, '');
       }
     } catch {
-      /* ignore */
     }
     const parent = dirname(dir);
     if (parent === dir) break;

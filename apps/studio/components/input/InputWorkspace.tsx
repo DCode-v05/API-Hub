@@ -75,7 +75,6 @@ export function InputWorkspace({
   const [isMac, setIsMac] = React.useState(false);
   const active = state.status !== 'idle';
 
-  // Studio splits once a run starts; CLI is split (terminal beside the controls) from the off.
   const split = mode === 'cli' || (mode === 'studio' && active);
 
   const studioRef = React.useRef<HTMLDivElement>(null);
@@ -85,7 +84,6 @@ export function InputWorkspace({
     setIsMac(typeof navigator !== 'undefined' && /mac/i.test(navigator.platform || navigator.userAgent));
   }, []);
 
-  // Keyboard shortcut: Ctrl/⌘ + ; swaps Studio ↔ CLI (home-row, no browser conflicts).
   React.useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && (e.key === ';' || e.code === 'Semicolon')) {
@@ -97,7 +95,6 @@ export function InputWorkspace({
     return () => window.removeEventListener('keydown', onKey);
   }, []);
 
-  // On smaller screens the columns stack — bring the output into view when a run starts.
   React.useEffect(() => {
     if (mode === 'studio' && active) studioRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   }, [active, mode]);
@@ -112,12 +109,9 @@ export function InputWorkspace({
     <div
       className={cx(
         'mx-auto px-4 py-6 transition-[max-width] duration-500 ease-out sm:px-6 lg:px-8',
-        // When split, become a fixed-height panel so the page itself doesn't scroll — only the
-        // right (output) column scrolls internally; the header + input stay put.
         split ? 'max-w-[1480px] xl:flex xl:h-[calc(100dvh-3.5rem)] xl:flex-col xl:overflow-hidden' : 'max-w-3xl',
       )}
     >
-      {/* Header: input type with the Studio/CLI toggle right beside it. */}
       <header className="mb-5 flex items-start gap-4 xl:shrink-0">
         <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-border bg-muted/40 text-foreground">
           <Icon className="h-5 w-5" />
@@ -133,16 +127,12 @@ export function InputWorkspace({
         </div>
       </header>
 
-      {/* Centered input that slides left into an equal split once there's output. The grid columns
-          animate from [1fr 0fr] to [1fr 1fr] while the container widens — a smooth glide. */}
       <div
         className={cx(
           'grid grid-cols-1 gap-6 transition-[grid-template-columns] duration-500 ease-out',
-          // Split: fill the panel height (one full-height row) so each column can scroll on its own.
           split ? 'xl:min-h-0 xl:flex-1 xl:grid-cols-[1fr_1fr] xl:grid-rows-[minmax(0,1fr)]' : 'xl:grid-cols-[1fr_0fr]',
         )}
       >
-        {/* LEFT — input. Fixed in place; only scrolls internally if it can't fit the panel height. */}
         <div className="min-w-0 space-y-5 xl:min-h-0 xl:overflow-y-auto xl:pr-1">
           <div className="rounded-lg border border-border bg-card p-5">
             <SaveProjectButton kind={kind} request={request} />
@@ -150,7 +140,6 @@ export function InputWorkspace({
             {children}
           </div>
 
-          {/* Studio actions */}
           <div className={cx(mode === 'studio' ? 'block' : 'hidden')}>
             <div className="flex flex-wrap items-center gap-2">
               <Button size="lg" onClick={() => void run(request)} disabled={!runnable || running}>
@@ -170,14 +159,11 @@ export function InputWorkspace({
             </div>
           </div>
 
-          {/* CLI controls */}
           <div className={cx(mode === 'cli' ? 'block' : 'hidden')}>
             <CliControls cli={cli} />
           </div>
         </div>
 
-        {/* RIGHT — output. The only scrolling region when split: it scrolls internally while the
-            header + input stay put. Always mounted so run state + terminal session persist. */}
         <div className="min-w-0 overflow-hidden xl:min-h-0 xl:overflow-y-auto">
           <div ref={studioRef} className={cx('scroll-mt-20', mode === 'studio' ? 'block' : 'hidden')}>
             {active ? <RunResults state={state} /> : null}

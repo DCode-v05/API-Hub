@@ -15,9 +15,9 @@ describe('loadEnv', () => {
     process.env['CN_TEST_PRESET'] = 'fromenv';
     try {
       loadEnv(file);
-      expect(process.env['CN_TEST_PAT']).toBe('ghp_abc123'); // `export ` prefix stripped
-      expect(process.env['CN_TEST_QUOTED']).toBe('spaced value'); // quotes stripped
-      expect(process.env['CN_TEST_PRESET']).toBe('fromenv'); // real env wins
+      expect(process.env['CN_TEST_PAT']).toBe('ghp_abc123');
+      expect(process.env['CN_TEST_QUOTED']).toBe('spaced value');
+      expect(process.env['CN_TEST_PRESET']).toBe('fromenv');
     } finally {
       delete process.env['CN_TEST_PAT'];
       delete process.env['CN_TEST_QUOTED'];

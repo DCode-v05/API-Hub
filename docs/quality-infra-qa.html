@@ -47,7 +47,6 @@
   <h1>Closing the gap with Stainless &amp; Fern — without the SaaS</h1>
   <p class="lede">This project does <b>bidirectional conversion</b>: SDK ⇄ MCP, GitHub → SDK / MCP, plus CLI and docs — all from one content-hashed IR. Stainless and Fern have three things our conversions were missing: a <b>quality layer</b>, <b>versioning</b>, and <b>correctness QA</b>. We added all three — built <b>into the conversion itself</b>, not as a hosted build/publish service. <span class="badge">all verified green</span></p>
 
-  <!-- WHAT CHANGED -->
   <div class="grid">
     <div class="card">
       <span class="tag t-green">Quality layer</span>
@@ -69,14 +68,12 @@
     </div>
   </div>
 
-  <!-- FLOWCHART -->
   <h2>How it works — three guarantees, one conversion</h2>
   <p class="body">Nothing here touches GitHub push/pull. The three additions attach to the <b>conversion</b> itself: any source climbs to one IR, fans out to surfaces, and each surface is made production-quality, stamped, and tested.</p>
   <div class="flow">
     <svg viewBox="0 0 920 250" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Conversion flow with quality, versioning and QA">
       <defs><marker id="a" markerWidth="9" markerHeight="9" refX="7" refY="3.5" orient="auto"><path d="M0,0 L7,3.5 L0,7" fill="none" stroke="#5d6478" stroke-width="1.6"/></marker></defs>
       <g font-family="ui-monospace,monospace" font-size="12.5">
-        <!-- inputs -->
         <rect x="12" y="40" width="120" height="120" rx="9" fill="#fff" stroke="#1d2233" stroke-width="1.3"/>
         <text x="72" y="64" text-anchor="middle" font-size="11" fill="#5d6478">INPUTS</text>
         <text x="72" y="86" text-anchor="middle">GitHub</text>
@@ -84,19 +81,16 @@
         <text x="72" y="126" text-anchor="middle">SDK</text>
         <text x="72" y="146" text-anchor="middle">MCP</text>
         <line x1="132" y1="100" x2="178" y2="100" stroke="#5d6478" stroke-width="1.5" marker-end="url(#a)"/>
-        <!-- IR -->
         <circle cx="240" cy="100" r="46" fill="#161b2e"/>
         <text x="240" y="96" text-anchor="middle" fill="#fff" font-size="12">IR</text>
         <text x="240" y="114" text-anchor="middle" fill="#7fa8f2" font-size="10">sha256</text>
         <line x1="286" y1="100" x2="332" y2="100" stroke="#5d6478" stroke-width="1.5" marker-end="url(#a)"/>
-        <!-- surfaces -->
         <rect x="336" y="40" width="150" height="120" rx="9" fill="#fff" stroke="#1d2233" stroke-width="1.3"/>
         <text x="411" y="64" text-anchor="middle" font-size="11" fill="#5d6478">SURFACES</text>
         <text x="411" y="86" text-anchor="middle">SDK · MCP</text>
         <text x="411" y="106" text-anchor="middle">CLI · docs</text>
         <text x="411" y="134" text-anchor="middle" fill="#5d6478" font-size="10">bidirectional ⇄</text>
         <line x1="486" y1="100" x2="540" y2="100" stroke="#5d6478" stroke-width="1.5" marker-end="url(#a)"/>
-        <!-- three layers -->
         <rect x="544" y="26" width="200" height="40" rx="8" fill="#e2f3ec" stroke="#0e8a5f" stroke-width="1.2"/>
         <text x="560" y="51" fill="#0e8a5f">① retries + timeout</text>
         <rect x="544" y="80" width="200" height="40" rx="8" fill="#e7edfd" stroke="#2b59d6" stroke-width="1.2"/>
@@ -124,7 +118,6 @@ for attempt in 0..maxRetries:
   if res is 429/5xx or network error: wait min(2^attempt, 8s)+jitter; retry
   else: return res          <span class="g"># success — or raise after the last attempt</span></pre>
 
-  <!-- WHY -->
   <h2>Why it matters for a converter</h2>
   <div class="qa">
     <div class="qrow"><div class="q">Quality layer</div><div class="a">A converted SDK that gives up on the first hiccup is a demo, not a deliverable. Retries + timeouts make the output something a team can actually ship — and because it lives in the generator, <b>every</b> language and direction gets it for free.</div></div>

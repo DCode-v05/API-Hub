@@ -16,11 +16,6 @@ export const SKIP_DIRS = new Set([
   'coverage',
 ]);
 
-/**
- * Depth-bounded recursive file walk that skips the usual noise directories. Returns absolute
- * file paths whose basename passes `match`, in deterministic order (shallower first, then
- * alphabetical) so two runs over the same tree enumerate identically.
- */
 export function walkFiles(
   root: string,
   match: (name: string) => boolean,

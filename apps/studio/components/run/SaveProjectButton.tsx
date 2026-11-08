@@ -10,11 +10,6 @@ import { WATCH_INTERVALS } from '@/lib/project-display';
 import { cx } from '@/lib/ui';
 import { Input } from '@/components/ui';
 
-/**
- * Replaces the old presets bar at the top of each input form. Saves the current input as a
- * version-controlled Project (mandatory name + optional auto-watch). Only re-fetchable sources
- * qualify — for pasted/stdio inputs the action is disabled with the reason from `isWatchable`.
- */
 export function SaveProjectButton({ kind, request }: { kind: StageSourceKind; request: RunRequest }) {
   const router = useRouter();
   const watch = isWatchable(request);

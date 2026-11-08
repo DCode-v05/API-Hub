@@ -1,8 +1,3 @@
-// One-shot migration: convert watchable saved presets into version-controlled Projects.
-//   npm run studio:migrate:projects
-// Presets whose source can't be re-fetched (pasted specs, stdio commands, or a GitHub repo without a
-// saved PAT) are skipped and logged. Existing projects are left untouched; name collisions are
-// skipped. Run it explicitly — it is NOT part of the schema bootstrap.
 import { loadStudioEnv } from '../lib/server/env';
 import { closePool, ensureReady, getPool } from '../lib/server/db';
 import { isWatchable } from '../lib/cn/watchable';

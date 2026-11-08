@@ -154,7 +154,6 @@ export function McpWorkspace() {
           </div>
         ) : null}
 
-        {/* Tool preview for pasted manifests */}
         {manifest ? (
           manifest.ok ? (
             <div className="space-y-2 rounded-md border border-border bg-muted/30 p-3">

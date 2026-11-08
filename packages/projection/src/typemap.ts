@@ -6,7 +6,6 @@ export interface TypedRef {
   ref?: string;
 }
 
-/** IR/JSON type → TypeScript type. */
 export function tsType(t: TypedRef): string {
   if (t.ref) return pascal(t.ref);
   switch (t.type) {
@@ -27,7 +26,6 @@ export function tsType(t: TypedRef): string {
   }
 }
 
-/** IR/JSON type → Python annotation (forward refs handled by `from __future__ import annotations`). */
 export function pyType(t: TypedRef): string {
   if (t.ref) return pascal(t.ref);
   switch (t.type) {
@@ -56,7 +54,6 @@ export interface ModelField {
   required: boolean;
 }
 
-/** Extract (shallow) fields from a component JSON schema for model generation. */
 export function schemaFields(schema: unknown): ModelField[] {
   if (!isObject(schema) || !isObject(schema['properties'])) return [];
   const requiredList = Array.isArray(schema['required'])
